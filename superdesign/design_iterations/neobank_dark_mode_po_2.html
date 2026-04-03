@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Folio — Variation 2: Card-Forward Neobank</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+      colors: {
+        base: '#08080A',
+        surface: '#111113',
+        elevated: '#1A1A1D',
+        border: '#262629',
+        'border-subtle': '#1F1F22',
+        accent: '#10B981',
+        'accent-soft': '#059669',
+        'accent-glow': 'rgba(16, 185, 129, 0.15)',
+        'text-1': '#F0F0F5',
+        'text-2': '#9494A0',
+        'text-3': '#5C5C66',
+      }
+    }
+  }
+}
+</script>
+<style>
+  * { -webkit-font-smoothing: antialiased; }
+  body { font-family: 'Inter', system-ui, sans-serif; }
+  @keyframes glow { 0%,100%{box-shadow:0 0 8px rgba(16,185,129,0.3)} 50%{box-shadow:0 0 16px rgba(16,185,129,0.5)} }
+  .glow { animation: glow 2.5s ease-in-out infinite; }
+  @keyframes slide-up { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+  .slide-up { animation: slide-up 0.35s ease-out both; }
+  .d1{animation-delay:0.06s} .d2{animation-delay:0.12s} .d3{animation-delay:0.18s} .d4{animation-delay:0.24s}
+  [data-view]{display:none} [data-view].on{display:block}
+  .tn{font-variant-numeric:tabular-nums}
+  .glass{background:rgba(17,17,19,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+</style>
+</head>
+<body class="bg-base text-text-1 min-h-screen">
+
+<div class="flex min-h-screen">
+  <!-- Sidebar (desktop) -->
+  <aside class="hidden lg:flex flex-col w-[248px] bg-surface border-r border-border-subtle sticky top-0 h-screen shrink-0">
+    <div class="px-5 pt-5 pb-6">
+      <div class="text-[26px] font-extrabold tracking-tighter">folio<span class="text-accent">.</span></div>
+      <div class="text-[11px] text-text-3 mt-0.5 tracking-wide uppercase">Prime Broker in Your Pocket</div>
+    </div>
+
+    <div class="flex-1 px-3 space-y-0.5" id="snav">
+      <button onclick="go('portfolio')" data-sn="portfolio" class="sn active w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all">
+        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Home
+      </button>
+      <button onclick="go('spend')" data-sn="spend" class="sn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all">
+        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Spend
+      </button>
+      <button onclick="go('notes')" data-sn="notes" class="sn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all">
+        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        History
+      </button>
+    </div>
+
+    <div class="px-4 py-3 border-t border-border-subtle">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white text-xs font-bold">S</div>
+        <div>
+          <div class="text-[13px] font-medium">Sree</div>
+          <div class="text-[11px] text-text-3 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-accent inline-block"></span>Testnet</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="flex-1 min-w-0">
+    <!-- Mobile header -->
+    <header class="lg:hidden flex items-center justify-between px-5 pt-4 pb-2 sticky top-0 glass z-20 border-b border-border-subtle">
+      <div class="text-xl font-extrabold tracking-tighter">folio<span class="text-accent">.</span></div>
+      <div class="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white text-xs font-bold">S</div>
+    </header>
+
+    <div class="max-w-[540px] mx-auto px-5 pb-24 lg:px-6 lg:py-6 lg:pb-8">
+
+      <!-- PORTFOLIO -->
+      <div data-view="portfolio" class="on">
+        <!-- Hero card -->
+        <div class="mt-4 lg:mt-0 bg-gradient-to-br from-surface via-surface to-elevated border border-border rounded-2xl p-6 slide-up">
+          <div class="text-sm text-text-2 mb-1">Total Portfolio</div>
+          <div class="text-[48px] lg:text-[56px] font-extrabold tracking-tighter leading-none tn">$9,900<span class="text-text-3 text-[32px]">.00</span></div>
+          <div class="flex items-center gap-3 mt-4">
+            <div class="flex items-center gap-1.5 px-3 py-1.5 bg-accent-glow rounded-full">
+              <svg class="w-3.5 h-3.5 text-accent" viewBox="0 0 12 12" fill="currentColor"><path d="M6 2L10 7H2L6 2Z"/></svg>
+              <span class="text-sm font-semibold text-accent tn">+1.28%</span>
+            </div>
+            <span class="text-sm text-text-3 tn">+$125.00 today</span>
+          </div>
+        </div>
+
+        <!-- Quick spend -->
+        <button onclick="go('spend')" class="mt-4 w-full flex items-center justify-between bg-accent hover:bg-accent-soft active:scale-[0.98] rounded-2xl px-6 py-4 transition-all slide-up d1">
+          <div>
+            <div class="text-white font-bold text-base">Spend from Portfolio</div>
+            <div class="text-white/60 text-xs mt-0.5">0% interest, instant, no liquidation</div>
+          </div>
+          <svg class="w-5 h-5 text-white/80" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+
+        <!-- Holdings -->
+        <div class="mt-6 slide-up d2">
+          <div class="text-xs font-semibold text-text-3 uppercase tracking-wider mb-3 px-1">Holdings</div>
+
+          <div class="bg-surface border border-border rounded-2xl divide-y divide-border">
+            <div class="flex items-center gap-4 px-5 py-4">
+              <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-500/20 to-red-600/5 flex items-center justify-center text-base font-bold text-red-400 shrink-0">T</div>
+              <div class="flex-1 min-w-0">
+                <div class="font-semibold">Tesla</div>
+                <div class="text-xs text-text-3 mt-0.5">44 shares . TSLA</div>
+              </div>
+              <div class="text-right">
+                <div class="font-bold tn">$9,900.00</div>
+                <div class="text-xs text-accent mt-0.5 tn font-medium">+1.28%</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 px-5 py-4 opacity-50">
+              <div class="w-12 h-12 rounded-2xl bg-text-3/10 flex items-center justify-center text-base font-bold text-text-3 shrink-0">A</div>
+              <div class="flex-1 min-w-0">
+                <div class="font-semibold">Apple</div>
+                <div class="text-xs text-text-3 mt-0.5">0 shares . AAPL</div>
+              </div>
+              <div class="text-right">
+                <div class="font-bold tn text-text-3">$0.00</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Activity -->
+        <div class="mt-6 slide-up d3">
+          <div class="flex items-center justify-between mb-3 px-1">
+            <div class="text-xs font-semibold text-text-3 uppercase tracking-wider">Recent</div>
+            <button onclick="go('notes')" class="text-xs text-accent font-medium">See all</button>
+          </div>
+
+          <div class="space-y-2">
+            <div onclick="go('detail')" class="flex items-center gap-3 bg-surface border border-border rounded-xl px-4 py-3.5 cursor-pointer hover:border-accent/30 transition-all active:scale-[0.995]">
+              <div class="w-10 h-10 rounded-xl bg-accent-glow flex items-center justify-center shrink-0">
+                <svg class="w-4.5 h-4.5 text-accent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium">Spend #003</div>
+                <div class="text-[11px] text-text-3 mt-0.5">2 min ago . 0.234 TSLA</div>
+              </div>
+              <div class="text-right shrink-0">
+                <div class="text-sm font-bold tn">-$50.00</div>
+                <div class="mt-1"><span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-accent-glow text-accent">Active</span></div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 bg-surface border border-border rounded-xl px-4 py-3.5">
+              <div class="w-10 h-10 rounded-xl bg-accent-glow flex items-center justify-center shrink-0">
+                <svg class="w-4.5 h-4.5 text-accent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium">Spend #002</div>
+                <div class="text-[11px] text-text-3 mt-0.5">1 hr ago . 0.117 TSLA</div>
+              </div>
+              <div class="text-right shrink-0">
+                <div class="text-sm font-bold tn">-$25.00</div>
+                <div class="mt-1"><span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-accent-glow text-accent">Active</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SPEND -->
+      <div data-view="spend">
+        <div class="flex items-center gap-3 pt-2 lg:pt-0 pb-6">
+          <button onclick="go('portfolio')" class="w-9 h-9 rounded-lg bg-surface border border-border flex items-center justify-center hover:bg-elevated transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          </button>
+          <span class="text-lg font-bold">Spend</span>
+        </div>
+
+        <!-- Big amount -->
+        <div class="bg-surface border border-border rounded-2xl p-6 mb-4">
+          <div class="text-xs text-text-3 uppercase tracking-wider font-semibold mb-4">Amount</div>
+          <div class="flex items-baseline gap-1">
+            <span class="text-[42px] font-extrabold text-text-3">$</span>
+            <input type="text" inputmode="decimal" value="50" id="v2amt" oninput="recalc2()" class="bg-transparent text-[42px] font-extrabold w-full outline-none tn" placeholder="0">
+          </div>
+          <div class="text-xs text-text-3 mt-3">Available: <strong class="text-text-2">$472.50</strong> from Tesla</div>
+        </div>
+
+        <!-- From -->
+        <div class="flex items-center gap-3 bg-surface border border-border rounded-xl px-4 py-3 mb-4">
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500/20 to-red-600/5 flex items-center justify-center text-xs font-bold text-red-400 shrink-0">T</div>
+          <div class="flex-1">
+            <div class="text-sm font-semibold">Tesla</div>
+            <div class="text-[11px] text-text-3">TSLA . $225.00</div>
+          </div>
+          <svg class="w-4 h-4 text-text-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+
+        <!-- Protection card -->
+        <div class="bg-surface border border-border rounded-2xl p-5 mb-5">
+          <div class="text-xs text-text-3 uppercase tracking-wider font-semibold mb-4">Protection</div>
+
+          <!-- Viz -->
+          <div class="relative mb-6">
+            <div class="h-2 bg-elevated rounded-full relative overflow-visible">
+              <div class="absolute inset-y-0 left-[12%] right-[12%] rounded-full" style="background:linear-gradient(90deg,rgba(239,68,68,0.06),rgba(16,185,129,0.06))"></div>
+            </div>
+            <div class="absolute top-1/2 -translate-y-1/2 left-[12%] w-3 h-3 rounded-full bg-red-500/80 border-2 border-base"></div>
+            <div class="absolute top-1/2 -translate-y-1/2 right-[12%] w-3 h-3 rounded-full bg-accent/80 border-2 border-base"></div>
+            <div class="absolute top-1/2 -translate-y-1/2 left-[38%] w-4 h-4 rounded-full bg-accent border-2 border-base glow"></div>
+            <div class="flex justify-between mt-3 text-[11px] tn">
+              <span class="text-red-400 font-medium">$213.75</span>
+              <span class="text-accent font-medium">$225.00</span>
+              <span class="text-accent font-medium">$258.75</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="bg-elevated rounded-xl p-3">
+              <div class="text-[11px] text-text-3 mb-1">You receive</div>
+              <div class="text-lg font-bold text-accent tn" id="v2recv">$50.00</div>
+            </div>
+            <div class="bg-elevated rounded-xl p-3">
+              <div class="text-[11px] text-text-3 mb-1">Interest</div>
+              <div class="text-lg font-bold text-accent">0%</div>
+            </div>
+          </div>
+
+          <div class="space-y-1.5 text-sm">
+            <div class="flex justify-between"><span class="text-text-2">Shares reserved</span><span class="font-medium tn" id="v2sh">0.234 TSLA</span></div>
+            <div class="flex justify-between"><span class="text-text-2">Service fee</span><span class="font-medium tn" id="v2fee">$2.63</span></div>
+          </div>
+        </div>
+
+        <button onclick="go('confirm')" id="v2btn" class="w-full py-4 bg-accent hover:bg-accent-soft active:scale-[0.98] text-white font-bold text-base rounded-xl transition-all">
+          Spend $50.00
+        </button>
+      </div>
+
+      <!-- CONFIRM -->
+      <div data-view="confirm">
+        <div class="flex flex-col items-center justify-center min-h-[55vh] text-center">
+          <div class="w-20 h-20 rounded-full bg-accent-glow flex items-center justify-center mb-6" style="animation:slide-up 0.4s cubic-bezier(0.34,1.56,0.64,1) both">
+            <svg class="w-10 h-10 text-accent" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="text-sm text-text-2 mb-1">Spent</div>
+          <div class="text-5xl font-extrabold tracking-tighter mb-3">$50.00</div>
+          <div class="text-sm text-text-2 mb-8">0.234 shares reserved . Protected $213 - $258</div>
+          <div class="w-full max-w-xs space-y-2.5">
+            <button onclick="go('detail')" class="w-full py-3.5 bg-accent hover:bg-accent-soft text-white font-bold rounded-xl transition-all">View Details</button>
+            <button onclick="go('portfolio')" class="w-full py-3.5 border border-border hover:bg-elevated text-text-1 font-medium rounded-xl transition-all">Done</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- NOTES -->
+      <div data-view="notes">
+        <div class="pt-4 lg:pt-0 mb-4">
+          <div class="text-lg font-bold">Spend Notes</div>
+          <div class="text-xs text-text-3 mt-1">History and active positions</div>
+        </div>
+        <div class="space-y-2">
+          <div onclick="go('detail')" class="flex items-center gap-3 bg-surface border border-border rounded-xl px-4 py-4 cursor-pointer hover:border-accent/30 transition-all">
+            <div class="w-10 h-10 rounded-xl bg-accent-glow flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+            </div>
+            <div class="flex-1 min-w-0"><div class="text-sm font-medium">#003</div><div class="text-[11px] text-text-3 mt-0.5">Apr 3 . 0.234 TSLA</div></div>
+            <div class="text-right"><div class="text-sm font-bold tn">$50.00</div><span class="mt-1 inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold bg-accent-glow text-accent">Active</span></div>
+          </div>
+          <div class="flex items-center gap-3 bg-surface border border-border rounded-xl px-4 py-4">
+            <div class="w-10 h-10 rounded-xl bg-accent-glow flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+            </div>
+            <div class="flex-1 min-w-0"><div class="text-sm font-medium">#002</div><div class="text-[11px] text-text-3 mt-0.5">Apr 3 . 0.117 TSLA</div></div>
+            <div class="text-right"><div class="text-sm font-bold tn">$25.00</div><span class="mt-1 inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold bg-accent-glow text-accent">Active</span></div>
+          </div>
+          <div class="flex items-center gap-3 bg-surface border border-border rounded-xl px-4 py-4">
+            <div class="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div class="flex-1 min-w-0"><div class="text-sm font-medium">#001</div><div class="text-[11px] text-text-3 mt-0.5">Apr 2 . 0.468 TSLA</div></div>
+            <div class="text-right"><div class="text-sm font-bold tn">$100.00</div><span class="mt-1 inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-500/15 text-blue-400">Repaid</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DETAIL -->
+      <div data-view="detail">
+        <div class="flex items-center gap-3 pt-2 lg:pt-0 pb-5">
+          <button onclick="go('notes')" class="w-9 h-9 rounded-lg bg-surface border border-border flex items-center justify-center hover:bg-elevated transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          </button>
+          <span class="text-lg font-bold">Spend Note #003</span>
+        </div>
+
+        <div class="bg-surface border border-border rounded-2xl p-6 text-center mb-4">
+          <span class="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-accent-glow text-accent">Active</span>
+          <div class="text-5xl font-extrabold tracking-tighter mt-3">$50.00</div>
+          <div class="text-sm text-text-2 mt-1">Advance against Tesla</div>
+          <div class="text-xs text-text-3 mt-2">Apr 3, 2026 at 3:42 PM</div>
+
+          <!-- Viz -->
+          <div class="relative mt-6 mb-2">
+            <div class="h-2 bg-elevated rounded-full relative overflow-visible">
+              <div class="absolute inset-y-0 left-[12%] right-[12%] rounded-full" style="background:linear-gradient(90deg,rgba(239,68,68,0.06),rgba(16,185,129,0.06))"></div>
+            </div>
+            <div class="absolute top-1/2 -translate-y-1/2 left-[12%] w-3 h-3 rounded-full bg-red-500/80 border-2 border-surface"></div>
+            <div class="absolute top-1/2 -translate-y-1/2 right-[12%] w-3 h-3 rounded-full bg-accent/80 border-2 border-surface"></div>
+            <div class="absolute top-1/2 -translate-y-1/2 left-[38%] w-4 h-4 rounded-full bg-accent border-2 border-surface glow"></div>
+          </div>
+          <div class="flex justify-between text-[11px] tn">
+            <span class="text-red-400 font-medium">$213.75</span>
+            <span class="text-accent font-medium">$225.00</span>
+            <span class="text-accent font-medium">$258.75</span>
+          </div>
+        </div>
+
+        <div class="bg-surface border border-border rounded-2xl p-5 mb-4">
+          <div class="text-xs text-text-3 uppercase tracking-wider font-semibold mb-3">Details</div>
+          <div class="space-y-0 divide-y divide-border">
+            <div class="flex justify-between py-2.5 text-sm"><span class="text-text-2">Shares reserved</span><span class="font-medium tn">0.234 TSLA</span></div>
+            <div class="flex justify-between py-2.5 text-sm"><span class="text-text-2">Reserve value</span><span class="font-medium tn">$52.63</span></div>
+            <div class="flex justify-between py-2.5 text-sm"><span class="text-text-2">Received</span><span class="font-semibold text-accent tn">$50.00</span></div>
+            <div class="flex justify-between py-2.5 text-sm"><span class="text-text-2">Service fee</span><span class="font-medium tn">$2.63</span></div>
+            <div class="flex justify-between py-2.5 text-sm"><span class="text-text-2">Interest</span><span class="font-bold text-accent">0%</span></div>
+            <div class="flex justify-between py-2.5 text-sm"><span class="text-text-2">Expires</span><span class="font-medium">May 3, 2026</span></div>
+          </div>
+        </div>
+
+        <div class="bg-surface border border-border rounded-2xl p-5 mb-5">
+          <div class="text-xs text-text-3 uppercase tracking-wider font-semibold mb-3">Receipt</div>
+          <div class="flex justify-between py-2 text-sm border-b border-border"><span class="text-text-2">Receipt ID</span><span class="text-accent font-medium">5234821</span></div>
+          <div class="flex justify-between py-2 text-sm"><span class="text-text-2">Transaction</span><span class="text-accent font-medium">View on explorer</span></div>
+        </div>
+
+        <button class="w-full py-3.5 bg-elevated border border-border text-text-3 font-medium rounded-xl cursor-not-allowed">Repay $50.00 (Coming Soon)</button>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- Mobile nav -->
+<nav class="lg:hidden fixed bottom-0 left-0 right-0 flex glass border-t border-border-subtle z-50" style="padding-bottom:env(safe-area-inset-bottom,6px)">
+  <button onclick="go('portfolio')" data-mn="portfolio" class="mn active flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium">
+    <svg class="w-[22px] h-[22px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    Home
+  </button>
+  <button onclick="go('spend')" data-mn="spend" class="mn flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium">
+    <svg class="w-[22px] h-[22px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Spend
+  </button>
+  <button onclick="go('notes')" data-mn="notes" class="mn flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium">
+    <svg class="w-[22px] h-[22px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    History
+  </button>
+</nav>
+
+<script>
+const map2 = {portfolio:'portfolio',spend:'spend',confirm:'spend',notes:'notes',detail:'notes'};
+function go(n){
+  document.querySelectorAll('[data-view]').forEach(e=>e.classList.remove('on'));
+  document.querySelector(`[data-view="${n}"]`).classList.add('on');
+  document.querySelectorAll('.sn').forEach(e=>{e.classList.remove('active','bg-accent/10','!text-accent');e.classList.add('text-text-2','hover:bg-elevated')});
+  const s=document.querySelector(`[data-sn="${map2[n]}"]`);
+  if(s){s.classList.add('active','bg-accent/10','!text-accent');s.classList.remove('text-text-2')}
+  document.querySelectorAll('.mn').forEach(e=>{e.classList.remove('active');e.style.color='#5C5C66'});
+  const m=document.querySelector(`[data-mn="${map2[n]}"]`);
+  if(m){m.classList.add('active');m.style.color='#10B981'}
+  window.scrollTo(0,0);
+}
+function recalc2(){
+  const v=parseFloat(document.getElementById('v2amt').value)||0;
+  const c=v/0.95,sh=c/225,f=c-v;
+  document.getElementById('v2sh').textContent=sh.toFixed(3)+' TSLA';
+  document.getElementById('v2recv').textContent='$'+v.toFixed(2);
+  document.getElementById('v2fee').textContent='$'+f.toFixed(2);
+  document.getElementById('v2btn').textContent='Spend $'+v.toFixed(2);
+}
+go('portfolio');
+</script>
+</body>
+</html>
