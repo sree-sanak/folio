@@ -3,7 +3,7 @@
   "chainSelectorName": "ethereum-testnet-sepolia",
   "collarOracleAddress": "0x0000000000000000000000000000000000000000",
   "dataStreamsUrl": "http://localhost:8787",
-  "dolthubBaseUrl": "https://www.dolthub.com/api/v1alpha1/post-no-preference/options/master",
+  "dolthubBaseUrl": "http://localhost:8787/api/v1alpha1/post-no-preference/options/master",
   "secretOwner": "",
   "assets": [
     {
