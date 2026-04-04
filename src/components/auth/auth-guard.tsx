@@ -1,0 +1,37 @@
+'use client';
+
+import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
+import { ConnectButton } from './connect-button';
+
+export function AuthGuard({ children }: { children: React.ReactNode }) {
+  const { user } = useDynamicContext();
+
+  const isAuthenticated = user !== undefined && user !== null;
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-base)' }}>
+        <div
+          className="flex flex-col items-center gap-6 rounded-2xl p-10"
+          style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--shadow-elevated)',
+          }}
+        >
+          <div className="text-center">
+            <h1 className="text-xl font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+              Folio
+            </h1>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              Sign in to view your portfolio
+            </p>
+          </div>
+          <ConnectButton />
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}

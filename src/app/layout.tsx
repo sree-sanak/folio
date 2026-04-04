@@ -1,11 +1,6 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
+import { DynamicProvider } from "@/lib/dynamic-provider";
 
 export const metadata: Metadata = {
   title: "Folio — Prime Broker in Your Pocket",
@@ -18,9 +13,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full`}>
+    <html lang="en" className="h-full">
       <body className="min-h-full" style={{ background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
-        {children}
+        <DynamicProvider>
+          {children}
+        </DynamicProvider>
       </body>
     </html>
   );
