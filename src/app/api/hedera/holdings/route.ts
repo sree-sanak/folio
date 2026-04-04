@@ -22,7 +22,10 @@ export async function GET() {
     const tokenMap = new Map(registry.map((t) => [t.tokenId, t]));
 
     const holdings = Array.from(balances.entries())
-      .filter(([tokenId]) => tokenMap.has(tokenId))
+      .filter(([tokenId]) => {
+        const entry = tokenMap.get(tokenId);
+        return entry && entry.type !== 'crypto'; // Crypto shown separately from user's own account
+      })
       .map(([tokenId, rawBalance]) => {
         const entry = tokenMap.get(tokenId)!;
         const shares = Math.floor(rawBalance / 10 ** entry.decimals);

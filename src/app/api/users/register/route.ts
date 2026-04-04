@@ -24,11 +24,11 @@ export async function POST(req: NextRequest) {
     let hederaAccountId = `0.0.${Date.now()}`; // Demo fallback
 
     if (hederaConfigured) {
-      const { createAccount, associateTokens } = await import('@/lib/hedera');
-      const { accountId } = await createAccount();
+      const { createAccount, associateTokens, transferToken } = await import('@/lib/hedera');
+      const { accountId, privateKey } = await createAccount();
       hederaAccountId = accountId;
 
-      // Associate all platform tokens with the new account
+      // Associate all platform tokens with the new account (needs account owner's key)
       const tokenIds = ['TSLA', 'AAPL']
         .map(getTokenIdForSymbol)
         .filter(Boolean) as string[];
@@ -39,7 +39,14 @@ export async function POST(req: NextRequest) {
       if (noteId) tokenIds.push(noteId);
 
       if (tokenIds.length > 0) {
-        await associateTokens(hederaAccountId, tokenIds);
+        await associateTokens(hederaAccountId, tokenIds, privateKey);
+      }
+
+      // Fund new account with USDC from treasury (demo: 500 USDC)
+      if (usdcId) {
+        const operatorId = process.env.HEDERA_OPERATOR_ID!;
+        const fundAmount = 500_000_000; // 500 USDC (6 decimals)
+        await transferToken(usdcId, operatorId, hederaAccountId, fundAmount);
       }
     }
 

@@ -18,7 +18,7 @@ export default function Settings({
   onConnectBrokerage,
 }: SettingsProps) {
   const [mounted, setMounted] = useState(false);
-  const { user } = useDynamicContext();
+  const { user, handleLogOut } = useDynamicContext();
 
   useEffect(() => {
     setMounted(true);
@@ -183,6 +183,15 @@ export default function Settings({
           </div>
         </div>
       </div>
+
+      {/* Log Out */}
+      <button
+        onClick={handleLogOut}
+        className="w-full py-4 text-[15px] font-semibold rounded-2xl transition-colors"
+        style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--negative)' }}
+      >
+        Log Out
+      </button>
     </div>
   );
 }

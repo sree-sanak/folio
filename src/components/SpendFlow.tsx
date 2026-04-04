@@ -13,11 +13,12 @@ interface SpendFlowProps {
   selectedHolding: Holding;
   holdings: Holding[];
   prices: Record<string, PriceData>;
+  currentUserAccountId?: string;
   onBack: () => void;
   onComplete: (result: SpendResult) => void;
 }
 
-export default function SpendFlow({ mode, selectedHolding, holdings, prices, onBack, onComplete }: SpendFlowProps) {
+export default function SpendFlow({ mode, selectedHolding, holdings, prices, currentUserAccountId, onBack, onComplete }: SpendFlowProps) {
   const [amount, setAmount] = useState('50');
   const [sending, setSending] = useState(false);
   const [expandHow, setExpandHow] = useState(false);
@@ -26,43 +27,70 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, onB
   const [recipientInput, setRecipientInput] = useState('');
   const [recipientAccountId, setRecipientAccountId] = useState('');
   const [recipientName, setRecipientName] = useState('');
-  const [searchResults, setSearchResults] = useState<{ email: string; name: string; hederaAccountId: string }[]>([]);
-  const [showResults, setShowResults] = useState(false);
-  const searchTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const [verifyStatus, setVerifyStatus] = useState<'idle' | 'checking' | 'found' | 'not-found' | 'self'>('idle');
+  const verifyTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const [durationMonths, setDurationMonths] = useState(1);
 
   const isValidAccountId = /^0\.0\.\d{1,10}$/.test(recipientInput.trim());
-  const hasRecipient = mode === 'card' || !!recipientAccountId || isValidAccountId;
-  const resolvedRecipientId = recipientAccountId || (isValidAccountId ? recipientInput.trim() : '');
+  const hasRecipient = mode === 'card' || !!recipientAccountId;
+  const resolvedRecipientId = recipientAccountId;
 
-  // Search users as they type
+  // Verify recipient as they type (email or account ID)
   useEffect(() => {
-    if (mode !== 'send' || recipientAccountId) return; // Already selected
-    clearTimeout(searchTimeout.current);
-    if (recipientInput.length < 2) {
-      setSearchResults([]);
-      setShowResults(false);
+    if (mode !== 'send' || recipientAccountId) return;
+    clearTimeout(verifyTimeout.current);
+    const input = recipientInput.trim();
+
+    if (input.length < 2) {
+      setVerifyStatus('idle');
       return;
     }
-    // Don't search if it looks like a Hedera account ID
-    if (/^0\.0\./.test(recipientInput)) {
-      setSearchResults([]);
-      setShowResults(false);
+
+    // Self-send check for raw account ID
+    if (isValidAccountId && currentUserAccountId && input === currentUserAccountId) {
+      setVerifyStatus('self');
       return;
     }
-    searchTimeout.current = setTimeout(async () => {
+
+    setVerifyStatus('checking');
+    verifyTimeout.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/users/search?q=${encodeURIComponent(recipientInput)}`);
+        const res = await fetch(`/api/users/search?q=${encodeURIComponent(input)}`);
         const data = await res.json();
-        setSearchResults(data.users || []);
-        setShowResults(data.users?.length > 0);
+        const users: { email: string; name: string; hederaAccountId: string }[] = data.users || [];
+
+        // Filter out self
+        const others = users.filter((u) => u.hederaAccountId !== currentUserAccountId);
+
+        // Find exact match (email or account ID)
+        const match = others.find(
+          (u) => u.email.toLowerCase() === input.toLowerCase() || u.hederaAccountId === input
+        );
+
+        if (match) {
+          setRecipientAccountId(match.hederaAccountId);
+          setRecipientName(match.name || match.email);
+          setVerifyStatus('found');
+        } else if (isValidAccountId) {
+          // Valid account ID format but not a known Folio user — allow it
+          setRecipientAccountId(input);
+          setRecipientName('');
+          setVerifyStatus('found');
+        } else {
+          setVerifyStatus('not-found');
+        }
       } catch {
-        setSearchResults([]);
+        if (isValidAccountId) {
+          setRecipientAccountId(input);
+          setVerifyStatus('found');
+        } else {
+          setVerifyStatus('not-found');
+        }
       }
-    }, 300);
-    return () => clearTimeout(searchTimeout.current);
-  }, [recipientInput, mode, recipientAccountId]);
+    }, 500);
+    return () => clearTimeout(verifyTimeout.current);
+  }, [recipientInput, mode, recipientAccountId, isValidAccountId, currentUserAccountId]);
 
   const spendableHoldings = holdings.filter((h) => h.shares > 0);
 
@@ -146,13 +174,13 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, onB
           </div>
 
           {recipientAccountId ? (
-            /* Selected recipient */
+            /* Verified recipient */
             <div className="card flex items-center gap-4 p-4">
               <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: 'var(--accent-muted)' }}>
-                <span className="text-sm font-bold" style={{ color: 'var(--accent)' }}>
-                  {(recipientName || recipientAccountId)[0].toUpperCase()}
-                </span>
+                style={{ background: 'rgba(16,185,129,0.1)' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--positive)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-[15px] font-semibold truncate">{recipientName || recipientAccountId}</div>
@@ -164,6 +192,7 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, onB
                 setRecipientAccountId('');
                 setRecipientName('');
                 setRecipientInput('');
+                setVerifyStatus('idle');
               }} className="p-2 rounded-lg cursor-pointer transition-colors flex-shrink-0"
                 style={{ color: 'var(--text-tertiary)' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -172,75 +201,46 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, onB
               </button>
             </div>
           ) : (
-            /* Search / manual entry */
+            /* Input with inline verification */
             <div className="card p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
                   style={{ background: 'var(--bg-elevated)' }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" strokeLinecap="round">
-                    <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-                  </svg>
+                  {verifyStatus === 'checking' ? (
+                    <div className="w-4 h-4 border-2 rounded-full animate-spin"
+                      style={{ borderColor: 'var(--text-tertiary)', borderTopColor: 'transparent' }} />
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" strokeLinecap="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+                    </svg>
+                  )}
                 </div>
                 <div className="flex-1">
                   <input
                     type="text"
                     value={recipientInput}
-                    onChange={(e) => setRecipientInput(e.target.value)}
-                    placeholder="Name, email, or 0.0.12345"
+                    onChange={(e) => {
+                      setRecipientInput(e.target.value);
+                      setRecipientAccountId('');
+                      setRecipientName('');
+                      setVerifyStatus('idle');
+                    }}
+                    placeholder="Email or account ID (0.0.12345)"
                     className="w-full bg-transparent border-none outline-none text-[15px] font-semibold"
                     style={{ color: 'var(--text-primary)', caretColor: 'var(--accent)' }}
-                    onFocus={() => searchResults.length > 0 && setShowResults(true)}
-                    onBlur={() => setTimeout(() => setShowResults(false), 200)}
                   />
-                  <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                    {isValidAccountId ? 'Valid Hedera account ID' : 'Search Folio users or enter account ID'}
+                  <div className="text-[11px] mt-0.5" style={{
+                    color: verifyStatus === 'self' ? 'var(--negative)'
+                      : verifyStatus === 'not-found' ? 'var(--negative)'
+                      : 'var(--text-tertiary)'
+                  }}>
+                    {verifyStatus === 'checking' && 'Verifying...'}
+                    {verifyStatus === 'self' && "You can't send to yourself"}
+                    {verifyStatus === 'not-found' && 'No user found with that email'}
+                    {verifyStatus === 'idle' && 'Enter recipient email or Hedera account ID'}
                   </div>
                 </div>
-                {isValidAccountId && (
-                  <button
-                    onClick={() => {
-                      setRecipientAccountId(recipientInput.trim());
-                      setShowResults(false);
-                    }}
-                    className="px-3 py-1.5 rounded-lg text-[12px] font-semibold cursor-pointer"
-                    style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}
-                  >
-                    Use
-                  </button>
-                )}
               </div>
-            </div>
-          )}
-
-          {/* Search Results Dropdown */}
-          {showResults && searchResults.length > 0 && (
-            <div className="card mt-1 overflow-hidden" style={{ position: 'absolute', left: 0, right: 0, zIndex: 10 }}>
-              {searchResults.map((user) => (
-                <button
-                  key={user.email}
-                  onMouseDown={() => {
-                    setRecipientAccountId(user.hederaAccountId);
-                    setRecipientName(user.name || user.email);
-                    setRecipientInput('');
-                    setShowResults(false);
-                  }}
-                  className="flex items-center gap-3 p-4 w-full text-left cursor-pointer transition-colors"
-                  style={{ borderBottom: '1px solid var(--border)' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-elevated)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                    style={{ background: 'linear-gradient(135deg, #6366F1, #8B5CF6)' }}>
-                    {(user.name || user.email)[0].toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[14px] font-semibold truncate">{user.name || user.email}</div>
-                    <div className="text-[11px] font-mono truncate" style={{ color: 'var(--text-tertiary)' }}>
-                      {user.hederaAccountId}
-                    </div>
-                  </div>
-                </button>
-              ))}
             </div>
           )}
         </div>
@@ -280,7 +280,7 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, onB
             <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Paying from</div>
           </div>
           <div className="text-[15px] font-semibold" style={{ fontVariantNumeric: 'tabular-nums', color: priceLoaded ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
-            {priceLoaded ? `$${stockPrice.toFixed(2)}` : '···'}
+            {priceLoaded ? `$${maxSpend.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '···'}
           </div>
           {spendableHoldings.length > 1 && (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2" strokeLinecap="round"
@@ -314,7 +314,7 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, onB
                       </div>
                     </div>
                     <div className="text-[15px] font-semibold" style={{ fontVariantNumeric: 'tabular-nums', color: hp ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
-                      {hp ? `$${hp.price.toFixed(2)}` : '···'}
+                      {hp ? `$${(h.shares * hp.price).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '···'}
                     </div>
                   </button>
                 );

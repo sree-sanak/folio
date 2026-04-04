@@ -158,20 +158,23 @@ export async function mintSpendNote(metadata: Uint8Array): Promise<number> {
   return receipt.serials[0].toNumber();
 }
 
-// Associate tokens with a user account
+// Associate tokens with a user account (requires the account owner's key)
 export async function associateTokens(
   accountId: string,
-  tokenIds: string[]
+  tokenIds: string[],
+  accountKey?: string
 ): Promise<void> {
   const client = getClient();
-  const operatorKey = getOperatorKey();
+  const signingKey = accountKey
+    ? PrivateKey.fromStringDer(accountKey)
+    : getOperatorKey();
 
   const tx = new TokenAssociateTransaction()
     .setAccountId(AccountId.fromString(accountId))
     .setTokenIds(tokenIds.map((id) => TokenId.fromString(id)))
     .freezeWith(client);
 
-  const signed = await tx.sign(operatorKey);
+  const signed = await tx.sign(signingKey);
   const response = await signed.execute(client);
   await response.getReceipt(client);
 }

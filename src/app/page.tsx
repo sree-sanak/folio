@@ -184,6 +184,7 @@ export default function Home() {
               selectedHolding={selectedHolding || holdings.find((h) => h.shares > 0) || holdings[0]}
               holdings={holdings}
               prices={prices}
+              currentUserAccountId={folioUser?.hederaAccountId}
               onBack={() => spendMode === 'card' ? setScreen('cards') : setScreen('portfolio')}
               onComplete={handleSpendComplete}
             />

@@ -19,9 +19,30 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const { getTokenBalances } = await import('@/lib/hedera');
+    const { getTokenBalances, transferToken } = await import('@/lib/hedera');
     const balances = await getTokenBalances(accountId);
     const registry = getTokenRegistry();
+
+    // Auto-fund: if user has < 100 USDC, top up from treasury (demo mode)
+    const usdcId = process.env.USDC_TEST_TOKEN_ID;
+    const operatorId = process.env.HEDERA_OPERATOR_ID;
+    if (usdcId && operatorId && accountId !== operatorId) {
+      const usdcEntry = registry.find((t) => t.tokenId === usdcId);
+      const rawUsdcBalance = balances.get(usdcId) ?? 0;
+      const usdcBalance = usdcEntry ? rawUsdcBalance / 10 ** usdcEntry.decimals : 0;
+      if (usdcBalance < 100) {
+        try {
+          const fundAmount = 500_000_000; // 500 USDC (6 decimals)
+          await transferToken(usdcId, operatorId, accountId, fundAmount);
+          // Re-fetch balances after funding
+          const updated = await getTokenBalances(accountId);
+          balances.clear();
+          updated.forEach((v, k) => balances.set(k, v));
+        } catch (e) {
+          console.error('Auto-fund USDC failed:', e);
+        }
+      }
+    }
 
     const tokenMap = new Map(registry.map((t) => [t.tokenId, t]));
 

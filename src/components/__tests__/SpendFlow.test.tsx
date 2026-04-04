@@ -41,15 +41,10 @@ describe('SpendFlow', () => {
     expect(screen.getByText('Apple')).toBeInTheDocument();
   });
 
-  it('displays selected stock price', () => {
+  it('displays total holding value and max spend', () => {
+    // 10 shares * $180 = $1,800 (shown on card and in available text)
     render(<SpendFlow {...defaultProps} />);
-    expect(screen.getByText('$180.00')).toBeInTheDocument();
-  });
-
-  it('shows correct max spend from selected holding', () => {
-    // 10 shares * $180 = $1800
-    render(<SpendFlow {...defaultProps} />);
-    expect(screen.getByText(/\$1,800/)).toBeInTheDocument();
+    expect(screen.getAllByText(/\$1,800/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows stock symbol in collateral line', () => {
