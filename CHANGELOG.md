@@ -2,6 +2,25 @@
 
 All notable changes to Folio will be documented in this file.
 
+## [0.2.2.0] - 2026-04-04
+
+### Added
+- Dynamic embedded EVM wallets auto-created on signup via EthereumWalletConnectors
+- Dynamic Node SDK server wallet for platform EVM treasury (2-of-2 MPC)
+- Delegated signing system with HMAC-verified webhook handler for server-side signing on behalf of users
+- EVM settlement step in spend flow, sending USDC to user's embedded wallet on Base Sepolia
+- EvmWallet component displaying embedded wallet address with copy button and network badge
+- Dynamic Wallet card in Settings showing wallet address and MPC security info
+- API routes: `/api/dynamic/server-wallet`, `/api/dynamic/delegation`, `/api/users/evm-wallet`
+- Type declarations for Dynamic Node SDK packages
+- Supabase migration for EVM wallet address and delegation credential columns
+
+### Changed
+- Dynamic provider now includes EthereumWalletConnectors for embedded wallet support
+- Registration flow stores EVM wallet address alongside Hedera account
+- Settings page relabeled "Wallet Key" to "Hedera Signing Key" to distinguish from Dynamic wallet
+- next.config.ts adds serverExternalPackages for Dynamic Node SDK native modules
+
 ## [0.2.1.1] - 2026-04-04
 
 ### Fixed
