@@ -10,6 +10,10 @@ export interface FolioUser {
   encryptedKey?: string;
   keySalt?: string;
   keyIv?: string;
+  evmWalletAddress?: string;
+  delegationWalletId?: string;
+  delegationApiKey?: string;
+  delegationKeyShare?: string;
   createdAt: string;
 }
 
@@ -21,6 +25,10 @@ interface UserRow {
   encrypted_key: string | null;
   key_salt: string | null;
   key_iv: string | null;
+  evm_wallet_address: string | null;
+  delegation_wallet_id: string | null;
+  delegation_api_key: string | null;
+  delegation_key_share: string | null;
   created_at: string;
 }
 
@@ -33,6 +41,10 @@ function rowToUser(row: UserRow): FolioUser {
     encryptedKey: row.encrypted_key ?? undefined,
     keySalt: row.key_salt ?? undefined,
     keyIv: row.key_iv ?? undefined,
+    evmWalletAddress: row.evm_wallet_address ?? undefined,
+    delegationWalletId: row.delegation_wallet_id ?? undefined,
+    delegationApiKey: row.delegation_api_key ?? undefined,
+    delegationKeyShare: row.delegation_key_share ?? undefined,
     createdAt: row.created_at,
   };
 }
@@ -80,6 +92,34 @@ export async function storeEncryptedKey(
       encrypted_key: encryptedKey,
       key_salt: keySalt,
       key_iv: keyIv,
+    })
+    .eq('email', email.toLowerCase());
+  if (error) throw error;
+}
+
+export async function updateEvmWallet(
+  email: string,
+  evmWalletAddress: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('users')
+    .update({ evm_wallet_address: evmWalletAddress })
+    .eq('email', email.toLowerCase());
+  if (error) throw error;
+}
+
+export async function storeDelegationCredentials(
+  email: string,
+  walletId: string,
+  apiKey: string,
+  keyShare: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('users')
+    .update({
+      delegation_wallet_id: walletId,
+      delegation_api_key: apiKey,
+      delegation_key_share: keyShare,
     })
     .eq('email', email.toLowerCase());
   if (error) throw error;

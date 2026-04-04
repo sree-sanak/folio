@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
+import { useDynamicContext, useUserWallets } from '@dynamic-labs/sdk-react-core';
 import type { PlaidStatus } from '@/lib/use-plaid-holdings';
 import { useHederaKey } from '@/lib/use-hedera-key';
 
@@ -21,10 +21,13 @@ export default function Settings({
   const [mounted, setMounted] = useState(false);
   const { user, handleLogOut } = useDynamicContext();
   const { hasKey, exportKey, importKey: doImportKey } = useHederaKey();
+  const userWallets = useUserWallets();
+  const embeddedWallet = userWallets.find((w) => w.connector?.isEmbeddedWallet === true);
   const [showKey, setShowKey] = useState(false);
   const [importInput, setImportInput] = useState('');
   const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [copied, setCopied] = useState(false);
+  const [evmCopied, setEvmCopied] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -190,10 +193,72 @@ export default function Settings({
         </div>
       </div>
 
-      {/* Wallet Key Management */}
+      {/* Dynamic Embedded Wallet */}
       <div className="card p-6">
         <div className="text-[11px] font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-tertiary)' }}>
-          Wallet Key
+          Dynamic Wallet
+        </div>
+        {embeddedWallet ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="w-11 h-11 rounded-full flex items-center justify-center"
+                style={{ background: 'rgba(99,102,241,0.1)' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366F1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="6" width="20" height="12" rx="2" /><path d="M22 10H18a2 2 0 0 0 0 4h4" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>EVM Embedded Wallet</div>
+                <div className="text-xs mt-1 font-mono truncate" style={{ color: 'var(--text-tertiary)' }}>
+                  {embeddedWallet.address}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(embeddedWallet.address);
+                  setEvmCopied(true);
+                  setTimeout(() => setEvmCopied(false), 2000);
+                }}
+                className="flex-1 py-2.5 text-[13px] font-semibold rounded-xl transition-colors"
+                style={{ background: 'rgba(99,102,241,0.1)', color: '#6366F1' }}
+              >
+                {evmCopied ? 'Copied!' : 'Copy Address'}
+              </button>
+              <div className="px-3 py-2.5 rounded-xl text-[11px] font-semibold flex items-center"
+                style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}>
+                Base Sepolia
+              </div>
+            </div>
+            <div className="p-3 rounded-lg" style={{ background: 'var(--bg-surface)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div className="text-[11px] leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+                Powered by Dynamic MPC — no seed phrase needed. Your EVM wallet receives settlement USDC after spend transactions.
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-4">
+            <div className="w-11 h-11 rounded-full flex items-center justify-center"
+              style={{ background: 'rgba(251,191,36,0.1)' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FBBF24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+              </svg>
+            </div>
+            <div>
+              <div className="text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>Wallet Provisioning</div>
+              <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                Your embedded EVM wallet is being created...
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Hedera Signing Key */}
+      <div className="card p-6">
+        <div className="text-[11px] font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-tertiary)' }}>
+          Hedera Signing Key
         </div>
         {hasKey ? (
           <div className="space-y-4">

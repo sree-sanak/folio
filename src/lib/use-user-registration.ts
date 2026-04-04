@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
+import { useDynamicContext, useUserWallets } from '@dynamic-labs/sdk-react-core';
 import { authFetch } from '@/lib/use-auth-fetch';
 import { useHederaKey } from './use-hedera-key';
 
@@ -26,6 +26,7 @@ type RegistrationStatus =
 
 export function useUserRegistration() {
   const { user } = useDynamicContext();
+  const userWallets = useUserWallets();
   const { hasKey, publicKeyDer, generateKey, signTransaction, encryptAndStore, recoverKey } = useHederaKey();
   const [folioUser, setFolioUser] = useState<FolioUser | null>(null);
   const [status, setStatus] = useState<RegistrationStatus>('idle');
@@ -193,6 +194,24 @@ export function useUserRegistration() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.email]);
+
+  // Store EVM embedded wallet address when available (runs once per address)
+  const [storedEvmAddress, setStoredEvmAddress] = useState<string | null>(null);
+  useEffect(() => {
+    if (!user?.email || status !== 'done') return;
+    const embeddedWallet = userWallets.find(
+      (w) => w.connector?.isEmbeddedWallet === true
+    );
+    if (!embeddedWallet?.address || embeddedWallet.address === storedEvmAddress) return;
+
+    setStoredEvmAddress(embeddedWallet.address);
+    authFetch('/api/users/evm-wallet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ evmAddress: embeddedWallet.address }),
+    }).catch((err) => console.error('Failed to store EVM wallet:', err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.email, status, userWallets]);
 
   return {
     folioUser,

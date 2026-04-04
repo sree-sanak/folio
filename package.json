@@ -12,6 +12,9 @@
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^2.0.38",
+    "@dynamic-labs-wallet/core": "^0.0.322",
+    "@dynamic-labs-wallet/node-evm": "^0.0.322",
+    "@dynamic-labs/ethereum": "^4.75.0",
     "@dynamic-labs/sdk-api": "^0.0.924",
     "@dynamic-labs/sdk-react-core": "^4.75.0",
     "@hashgraph/sdk": "^2.81.0",
@@ -23,6 +26,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-plaid-link": "^4.1.1",
+    "viem": "^2.47.10",
     "yahoo-finance2": "^3.14.0"
   },
   "overrides": {
