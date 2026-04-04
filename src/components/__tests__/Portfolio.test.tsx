@@ -21,6 +21,7 @@ const defaultProps = {
   prices: mockPrices,
   plaidStatus: 'connected' as const,
   isPlaidAvailable: true,
+  isDemo: false,
   onConnectBrokerage: jest.fn(),
   onSpendFromHolding: jest.fn(),
   onSpend: jest.fn(),
@@ -34,13 +35,13 @@ describe('Portfolio', () => {
     expect(screen.getByText('Netflix')).toBeInTheDocument();
   });
 
-  it('renders "Connect Brokerage" when idle with plaid available and no holdings', () => {
+  it('renders "Connect Brokerage" when idle with plaid available and demo holdings', () => {
     render(
       <Portfolio
         {...defaultProps}
-        holdings={[{ symbol: 'TSLA', name: 'Tesla', shares: 0, icon: 'T', gradient: '' }]}
         plaidStatus="idle"
         isPlaidAvailable={true}
+        isDemo={true}
       />
     );
     expect(screen.getByText('Connect Brokerage')).toBeInTheDocument();
@@ -62,9 +63,9 @@ describe('Portfolio', () => {
     render(
       <Portfolio
         {...defaultProps}
-        holdings={[{ symbol: 'TSLA', name: 'Tesla', shares: 0, icon: 'T', gradient: '' }]}
         plaidStatus="idle"
         isPlaidAvailable={true}
+        isDemo={true}
         onConnectBrokerage={onConnect}
       />
     );

@@ -9,6 +9,7 @@ interface PortfolioProps {
   prices: Record<string, PriceData>;
   plaidStatus: PlaidStatus;
   isPlaidAvailable: boolean;
+  isDemo: boolean;
   onConnectBrokerage: () => void;
   onSpendFromHolding: (holding: Holding) => void;
   onSpend: () => void;
@@ -20,6 +21,7 @@ export default function Portfolio({
   prices,
   plaidStatus,
   isPlaidAvailable,
+  isDemo,
   onConnectBrokerage,
   onSpendFromHolding,
   onSpend,
@@ -76,7 +78,7 @@ export default function Portfolio({
           Holdings
         </div>
 
-        {plaidStatus === 'idle' && isPlaidAvailable && !hasHoldings ? (
+        {plaidStatus === 'idle' && isPlaidAvailable && isDemo ? (
           /* Connect Brokerage Card */
           <button
             onClick={onConnectBrokerage}
