@@ -12,8 +12,8 @@ interface StockDetailProps {
 }
 
 export default function StockDetail({ holding, price, totalPortfolioValue, onBack, onSpend }: StockDetailProps) {
-  const isCrypto = holding.type === 'crypto';
   const isUsdc = holding.symbol === 'USDC';
+  const isCrypto = holding.type === 'crypto' || isUsdc;
 
   // For crypto stablecoins, price is $1. For stocks, use price API.
   const unitPrice = isCrypto ? (isUsdc ? 1 : 0) : (price?.price ?? 0);
@@ -90,7 +90,7 @@ export default function StockDetail({ holding, price, totalPortfolioValue, onBac
           { label: 'Network', value: 'Hedera Testnet' },
         ] : [
           { label: 'Shares', value: holding.shares.toLocaleString() },
-          { label: 'Avg Price', value: priceLoaded ? `$${unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '···' },
+          { label: 'Market Price', value: priceLoaded ? `$${unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '···' },
           { label: 'Market Value', value: priceLoaded ? `$${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '···' },
           { label: 'Portfolio Weight', value: totalPortfolioValue > 0 ? `${((totalValue / totalPortfolioValue) * 100).toFixed(1)}%` : '—' },
         ]).map((row, i, arr) => (
