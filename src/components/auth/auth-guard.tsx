@@ -29,6 +29,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           }}
         >
           <div className="text-center">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold mx-auto mb-4"
+              style={{ background: 'var(--accent)', color: '#000', boxShadow: '0 2px 8px rgba(16,185,129,0.3)' }}>F</div>
             <h1 className="text-xl font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
               Folio
             </h1>

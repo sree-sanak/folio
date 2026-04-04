@@ -9,7 +9,7 @@ export function ConnectButton() {
     return (
       <button
         onClick={() => setShowAuthFlow(true)}
-        className="bg-white/10 hover:bg-white/20 text-white rounded-full px-4 py-2 text-sm font-medium transition-colors"
+        className="btn-primary px-8 py-3 text-[15px]"
       >
         Sign in
       </button>
@@ -19,9 +19,9 @@ export function ConnectButton() {
   const label = user.email ?? user.firstName ?? 'Connected';
 
   return (
-    <div className="flex items-center gap-2 bg-white/10 rounded-full px-4 py-2">
-      <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
-      <span className="text-white text-sm font-medium">{label}</span>
+    <div className="flex items-center gap-2 px-4 py-2 rounded-xl" style={{ background: 'var(--bg-elevated)' }}>
+      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: 'var(--accent)' }} />
+      <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{label}</span>
     </div>
   );
 }
