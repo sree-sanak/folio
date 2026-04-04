@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       public_token,
     });
 
-    setAccessToken(userId, response.data.access_token);
+    await setAccessToken(userId, response.data.access_token);
 
     return NextResponse.json({ success: true });
   } catch (error) {

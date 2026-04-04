@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ users: [] });
   }
 
-  const users = searchUsers(query);
+  const users = await searchUsers(query);
 
   // Don't expose private keys — only return safe fields
   const safe = users.map((u) => ({

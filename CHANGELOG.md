@@ -2,6 +2,17 @@
 
 All notable changes to Folio will be documented in this file.
 
+## [0.2.1.0] - 2026-04-04
+
+### Changed
+- User registry and Plaid token storage migrated from local JSON files to Supabase Postgres
+- All registry and token functions are now async with proper await handling
+- App is now deployable on serverless platforms (Vercel) with no filesystem dependency
+
+### Added
+- Supabase client integration (`@supabase/supabase-js`)
+- `users` and `plaid_tokens` Postgres tables replacing `.user-registry.json` and `.plaid-tokens.json`
+
 ## [0.2.0.3] - 2026-04-04
 
 ### Fixed

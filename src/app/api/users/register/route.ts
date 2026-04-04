@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if user already exists
-    const existing = getUser(email);
+    const existing = await getUser(email);
     if (existing) {
       return NextResponse.json({ user: existing });
     }
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const user = registerUser(email, name || '', hederaAccountId);
+    const user = await registerUser(email, name || '', hederaAccountId);
 
     return NextResponse.json({ user, created: true });
   } catch (error) {

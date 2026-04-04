@@ -160,7 +160,7 @@ describe('GET /api/plaid/holdings', () => {
 
   it('returns mapped holdings array', async () => {
     const { plaidClient: client, getAccessToken: mockGet } = require('../plaid');
-    (mockGet as jest.Mock).mockReturnValue('access-token');
+    (mockGet as jest.Mock).mockResolvedValue('access-token');
     (client.investmentsHoldingsGet as jest.Mock).mockResolvedValue({
       data: {
         holdings: [
@@ -168,8 +168,8 @@ describe('GET /api/plaid/holdings', () => {
           { security_id: 'sec-2', quantity: 5 },
         ],
         securities: [
-          { security_id: 'sec-1', ticker_symbol: 'AAPL', name: 'Apple Inc' },
-          { security_id: 'sec-2', ticker_symbol: 'NFLX', name: 'Netflix Inc' },
+          { security_id: 'sec-1', ticker_symbol: 'AAPL', name: 'Apple Inc', type: 'equity' },
+          { security_id: 'sec-2', ticker_symbol: 'NFLX', name: 'Netflix Inc', type: 'equity' },
         ],
       },
     });
@@ -190,7 +190,7 @@ describe('GET /api/plaid/holdings', () => {
 
   it('returns 401 when no access token', async () => {
     const { getAccessToken: mockGet } = require('../plaid');
-    (mockGet as jest.Mock).mockReturnValue(undefined);
+    (mockGet as jest.Mock).mockResolvedValue(undefined);
 
     const req = mockRequest({ searchParams: { userId: 'user-1' } });
     const res = await GET(req);
@@ -202,7 +202,7 @@ describe('GET /api/plaid/holdings', () => {
 
   it('returns empty array for empty holdings', async () => {
     const { plaidClient: client, getAccessToken: mockGet } = require('../plaid');
-    (mockGet as jest.Mock).mockReturnValue('access-token');
+    (mockGet as jest.Mock).mockResolvedValue('access-token');
     (client.investmentsHoldingsGet as jest.Mock).mockResolvedValue({
       data: { holdings: [], securities: [] },
     });
@@ -217,7 +217,7 @@ describe('GET /api/plaid/holdings', () => {
 
   it('returns 500 on Plaid error', async () => {
     const { plaidClient: client, getAccessToken: mockGet } = require('../plaid');
-    (mockGet as jest.Mock).mockReturnValue('access-token');
+    (mockGet as jest.Mock).mockResolvedValue('access-token');
     (client.investmentsHoldingsGet as jest.Mock).mockRejectedValue(new Error('API error'));
 
     const req = mockRequest({ searchParams: { userId: 'user-1' } });
