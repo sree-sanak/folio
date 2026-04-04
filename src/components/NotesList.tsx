@@ -9,7 +9,7 @@ interface SpendNote {
   amount: number;
   shares: number;
   recipientName: string;
-  status: 'active' | 'repaid' | 'expired';
+  status: 'active' | 'repaid' | 'settled' | 'liquidated' | 'expired';
   expiryDate: string;
   createdAt: string;
 }
@@ -40,6 +40,8 @@ export default function NotesList({ onSelectNote }: NotesListProps) {
   const statusColors: Record<string, { bg: string; color: string }> = {
     active: { bg: 'rgba(16,185,129,0.12)', color: '#10B981' },
     repaid: { bg: 'rgba(99,102,241,0.12)', color: '#818CF8' },
+    settled: { bg: 'rgba(245,158,11,0.12)', color: '#F59E0B' },
+    liquidated: { bg: 'rgba(239,68,68,0.12)', color: '#EF4444' },
     expired: { bg: 'rgba(239,68,68,0.12)', color: '#EF4444' },
   };
 

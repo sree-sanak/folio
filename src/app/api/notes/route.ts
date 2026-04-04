@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getNotes, getNote, updateNoteStatus } from '@/lib/store';
+import { getNotes, getNote, updateNoteStatus } from '@/lib/spend-notes';
 import { verifyAuth, unauthorized } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
@@ -11,14 +11,14 @@ export async function GET(req: NextRequest) {
   const userAccountId = searchParams.get('userAccountId');
 
   if (id) {
-    const note = getNote(parseInt(id));
+    const note = await getNote(parseInt(id));
     if (!note) {
       return NextResponse.json({ error: 'Note not found' }, { status: 404 });
     }
     return NextResponse.json({ notes: [note] });
   }
 
-  const notes = getNotes(userAccountId ?? undefined);
+  const notes = await getNotes(userAccountId ?? undefined);
   return NextResponse.json({ notes });
 }
 
@@ -37,7 +37,7 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
-  const note = updateNoteStatus(noteId, status);
+  const note = await updateNoteStatus(noteId, status);
   if (!note) {
     return NextResponse.json({ error: 'Note not found' }, { status: 404 });
   }

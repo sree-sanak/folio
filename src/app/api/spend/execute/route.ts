@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStockPrice } from '@/lib/price';
-import { addNote } from '@/lib/store';
+import { addNote } from '@/lib/spend-notes';
 import { issueVirtualCard } from '@/lib/lithic';
 import { getTokenIdForSymbol } from '@/lib/token-registry';
 import { verifyAuth, unauthorized } from '@/lib/auth';
@@ -177,7 +177,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const note = addNote({
+    const note = await addNote({
       symbol,
       serial: hederaConfigured ? 1 : Date.now(),
       recipient: recipientAccountId || userAccountId || 'demo-user',

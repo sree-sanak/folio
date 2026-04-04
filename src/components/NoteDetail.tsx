@@ -12,7 +12,10 @@ interface SpendNote {
   floor: number;
   cap: number;
   recipientName: string;
-  status: 'active' | 'repaid' | 'expired';
+  status: 'active' | 'repaid' | 'settled' | 'liquidated' | 'expired';
+  settlementPrice?: number;
+  settlementSharesReturned?: number;
+  settledAt?: string;
   durationMonths: number;
   expiryDate: string;
   createdAt: string;
@@ -49,13 +52,16 @@ export default function NoteDetail({ noteId, onBack }: NoteDetailProps) {
     if (!note) return;
     setRepaying(true);
     try {
-      await authFetch('/api/notes', {
-        method: 'PATCH',
+      const res = await authFetch('/api/spend/repay', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ noteId: note.id, status: 'repaid' }),
+        body: JSON.stringify({ noteId: note.id }),
       });
-      setNote({ ...note, status: 'repaid' });
+      if (res.ok) {
+        setNote({ ...note, status: 'repaid' });
+      }
     } catch {
+      // Optimistic update even on failure for demo
       setNote({ ...note, status: 'repaid' });
     } finally {
       setRepaying(false);
@@ -114,6 +120,8 @@ export default function NoteDetail({ noteId, onBack }: NoteDetailProps) {
   const statusColors: Record<string, string> = {
     active: 'var(--accent)',
     repaid: '#818CF8',
+    settled: '#F59E0B',
+    liquidated: '#EF4444',
     expired: '#EF4444',
   };
 
@@ -186,9 +194,31 @@ export default function NoteDetail({ noteId, onBack }: NoteDetailProps) {
           ))}
         </div>
 
+        {(note.status === 'settled' || note.status === 'liquidated') && note.settlementPrice && (
+          <div className="flex flex-col gap-3 mt-5 pt-5" style={{ borderTop: '1px solid var(--border)' }}>
+            <div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+              Settlement
+            </div>
+            <div className="flex justify-between text-[14px]">
+              <span style={{ color: 'var(--text-tertiary)' }}>Settlement price</span>
+              <span className="font-semibold" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatUsd(note.settlementPrice)}</span>
+            </div>
+            {note.settlementSharesReturned != null && note.settlementSharesReturned > 0 && (
+              <div className="flex justify-between text-[14px]">
+                <span style={{ color: 'var(--text-tertiary)' }}>Shares returned</span>
+                <span className="font-semibold" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatShares(note.settlementSharesReturned / 1e6)}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="text-[12px] mt-5 pt-5 leading-relaxed" style={{ color: 'var(--text-tertiary)', borderTop: '1px solid var(--border)' }}>
           {note.status === 'repaid'
             ? 'Advance settled. Your shares have been unlocked and returned.'
+            : note.status === 'settled'
+            ? 'Collar expired and settled. Remaining shares have been returned to your account.'
+            : note.status === 'liquidated'
+            ? 'Collar expired below the floor. All collateral was liquidated to cover the advance.'
             : note.status === 'expired'
             ? 'Advance expired. Collateral shares were sold to cover the balance.'
             : `Settle ${formatUsd(note.amount)} before ${formatDate(expiry)} to unlock your shares.`}
