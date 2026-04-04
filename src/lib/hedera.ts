@@ -160,27 +160,6 @@ export async function mintSpendNote(metadata: Uint8Array): Promise<number> {
   return receipt.serials[0].toNumber();
 }
 
-// Associate tokens with a user account (requires the account owner's key)
-export async function associateTokens(
-  accountId: string,
-  tokenIds: string[],
-  accountKey?: string
-): Promise<void> {
-  const client = getClient();
-  const signingKey = accountKey
-    ? PrivateKey.fromStringDer(accountKey)
-    : getOperatorKey();
-
-  const tx = new TokenAssociateTransaction()
-    .setAccountId(AccountId.fromString(accountId))
-    .setTokenIds(tokenIds.map((id) => TokenId.fromString(id)))
-    .freezeWith(client);
-
-  const signed = await tx.sign(signingKey);
-  const response = await signed.execute(client);
-  await response.getReceipt(client);
-}
-
 // Transfer fungible tokens (used for escrow lock + USDC advance)
 export async function transferToken(
   tokenId: string,
@@ -235,23 +214,6 @@ export async function transferNft(
   await response.getReceipt(client);
 
   return response.transactionId.toString();
-}
-
-// Create a new Hedera account (for new app users)
-export async function createAccount(): Promise<{ accountId: string; privateKey: string }> {
-  const client = getClient();
-  const newKey = PrivateKey.generateED25519();
-
-  const tx = new AccountCreateTransaction()
-    .setKey(newKey.publicKey)
-    .setInitialBalance(new Hbar(5)) // Fund with 5 HBAR for testnet tx fees
-    .freezeWith(client);
-
-  const response = await tx.execute(client);
-  const receipt = await response.getReceipt(client);
-  const accountId = receipt.accountId!.toString();
-
-  return { accountId, privateKey: newKey.toStringDer() };
 }
 
 // Get token balances for an account
