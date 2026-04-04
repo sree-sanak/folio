@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useDynamicContext, useUserWallets } from '@dynamic-labs/sdk-react-core';
 import type { PlaidStatus } from '@/lib/use-plaid-holdings';
 import { useHederaKey } from '@/lib/use-hedera-key';
-import { authFetch } from '@/lib/use-auth-fetch';
+
 
 interface SettingsProps {
   plaidStatus: PlaidStatus;

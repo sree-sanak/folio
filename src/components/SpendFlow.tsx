@@ -21,7 +21,7 @@ interface SpendFlowProps {
 }
 
 export default function SpendFlow({ mode, selectedHolding, holdings, prices, currentUserAccountId, onBack, onComplete }: SpendFlowProps) {
-  const [amount, setAmount] = useState('50');
+  const [amount, setAmount] = useState('');
   const [sending, setSending] = useState(false);
   const [sendStatus, setSendStatus] = useState<'idle' | 'preparing' | 'signing' | 'submitting'>('idle');
   const [sendError, setSendError] = useState('');
