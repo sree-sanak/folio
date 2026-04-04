@@ -5,6 +5,7 @@ import { formatUsd, formatShares, formatDate } from '@/lib/collar';
 
 interface SpendNote {
   id: number;
+  symbol: string;
   amount: number;
   shares: number;
   floor: number;
@@ -151,7 +152,7 @@ export default function NoteDetail({ noteId, onBack }: NoteDetailProps) {
         <div className="flex flex-col gap-4">
           {[
             { label: 'Status', value: note.status.charAt(0).toUpperCase() + note.status.slice(1), color: statusColors[note.status] },
-            { label: 'Collateral', value: `${formatShares(note.shares)} TSLA` },
+            { label: 'Collateral', value: `${formatShares(note.shares)} ${note.symbol || 'TSLA'}` },
             { label: 'Interest', value: '0%', color: 'var(--accent)' },
             { label: 'Protection', value: `${formatUsd(note.floor)} floor / ${formatUsd(note.cap)} cap` },
             { label: 'Duration', value: `${note.durationMonths} month${note.durationMonths > 1 ? 's' : ''}` },

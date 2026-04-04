@@ -66,14 +66,23 @@ export async function getStockPrice(symbol: string): Promise<PriceData> {
   }
 }
 
-export async function getAllPrices(): Promise<Record<string, PriceData>> {
-  const [tsla, aapl] = await Promise.allSettled([
-    getStockPrice('TSLA'),
-    getStockPrice('AAPL'),
-  ]);
+export async function getAllPrices(
+  symbols: string[] = ['TSLA', 'AAPL']
+): Promise<Record<string, PriceData>> {
+  const results = await Promise.allSettled(
+    symbols.map((s) => getStockPrice(s))
+  );
 
-  return {
-    TSLA: tsla.status === 'fulfilled' ? tsla.value : FALLBACK_PRICES.TSLA,
-    AAPL: aapl.status === 'fulfilled' ? aapl.value : FALLBACK_PRICES.AAPL,
-  };
+  const prices: Record<string, PriceData> = {};
+  symbols.forEach((symbol, i) => {
+    const result = results[i];
+    if (result.status === 'fulfilled') {
+      prices[symbol] = result.value;
+    } else if (FALLBACK_PRICES[symbol]) {
+      prices[symbol] = FALLBACK_PRICES[symbol];
+    }
+    // If no fallback exists, symbol is simply omitted
+  });
+
+  return prices;
 }
