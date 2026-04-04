@@ -85,7 +85,7 @@ export default function Home() {
   const navMap: Record<Screen, string> = {
     portfolio: 'portfolio',
     'stock-detail': 'portfolio',
-    spend: 'spend',
+    spend: spendMode === 'card' ? 'cards' : 'spend',
     confirm: 'spend',
     'card-result': 'cards',
     'card-detail': 'cards',
