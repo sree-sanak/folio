@@ -29,7 +29,7 @@ interface VolatilityData {
 }
 
 // Cache to avoid hammering Yahoo
-let volCache: Record<string, { data: VolatilityData; ts: number }> = {};
+const volCache: Record<string, { data: VolatilityData; ts: number }> = {};
 const VOL_CACHE_TTL = 60_000; // 1 minute
 
 export async function getVolatilityData(symbol: string): Promise<VolatilityData> {

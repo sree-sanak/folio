@@ -330,11 +330,6 @@ export default function Home() {
           {screen === 'card-result' && lastSpend && (
             <CardResult
               result={lastSpend}
-              onViewNote={() => {
-                setSelectedNoteId(lastSpend.noteId);
-                setScreen('note-detail');
-              }}
-              onViewCards={() => setScreen('cards')}
               onViewCardDetail={() => {
                 setSelectedNoteId(lastSpend.noteId);
                 setScreen('card-detail');
@@ -342,7 +337,7 @@ export default function Home() {
               onDone={() => setScreen('portfolio')}
             />
           )}
-          {screen === 'card-detail' && selectedNoteId && (
+          {screen === 'card-detail' && selectedNoteId !== null && (
             <CardDetail
               noteId={selectedNoteId}
               onBack={() => setScreen('cards')}
@@ -364,7 +359,7 @@ export default function Home() {
           {screen === 'notes' && (
             <NotesList onSelectNote={handleViewNote} />
           )}
-          {screen === 'note-detail' && selectedNoteId && (
+          {screen === 'note-detail' && selectedNoteId !== null && (
             <NoteDetail noteId={selectedNoteId} onBack={() => setScreen('notes')} />
           )}
           {screen === 'settings' && (

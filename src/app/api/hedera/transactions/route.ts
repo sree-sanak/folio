@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const limit = parseInt(req.nextUrl.searchParams.get('limit') || '25');
+    const limit = parseInt(req.nextUrl.searchParams.get('limit') || '25', 10) || 25;
     const [transactions, nfts] = await Promise.all([
       getAccountTransactions(accountId, limit),
       getAccountNfts(accountId, process.env.SPEND_NOTE_TOKEN_ID),
@@ -35,6 +35,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error('Transaction history error:', error);
-    return NextResponse.json({ transactions: [], spendNotes: [] });
+    return NextResponse.json({ transactions: [], spendNotes: [] }, { status: 500 });
   }
 }

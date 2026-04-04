@@ -10,7 +10,7 @@ const mockExecute = jest.fn().mockResolvedValue({
   getReceipt: jest.fn().mockResolvedValue({ accountId: { toString: () => '0.0.12345' } }),
   transactionId: { toString: () => '0.0.6256036@1234567890.000' },
 });
-const mockFreezeWith = jest.fn().mockReturnThis();
+const _mockFreezeWith = jest.fn().mockReturnThis();
 const mockSetKey = jest.fn().mockReturnThis();
 const mockSetInitialBalance = jest.fn().mockReturnThis();
 const mockSetAccountId = jest.fn().mockReturnThis();

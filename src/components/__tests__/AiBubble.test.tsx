@@ -159,6 +159,9 @@ describe('AiBubble', () => {
       fireEvent.click(screen.getByText('Settle Now'));
 
       await waitFor(() => {
+        expect(mockAuthFetch).toHaveBeenCalledWith('/api/spend/repay/prepare', expect.objectContaining({
+          method: 'POST',
+        }));
         expect(mockAuthFetch).toHaveBeenCalledWith('/api/spend/repay', expect.objectContaining({
           method: 'POST',
         }));

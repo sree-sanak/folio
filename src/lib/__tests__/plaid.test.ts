@@ -3,7 +3,7 @@ jest.mock('../supabase', () => {
   const store: Record<string, string> = {};
   return {
     supabase: {
-      from: (table: string) => ({
+      from: (_table: string) => ({
         upsert: (row: { user_id: string; access_token: string }) => {
           store[row.user_id] = row.access_token;
           return { error: null };

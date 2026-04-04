@@ -3,8 +3,13 @@ import { getStockPrice } from '@/lib/price';
 import { optimizeCollar, calculateOptimizedCollar } from '@/lib/ai-collar-optimizer';
 import { verifyAuth, unauthorized } from '@/lib/auth';
 
-// AI collar optimization endpoint — returns recommended collar parameters
-// without executing the trade. Users can review and approve before spending.
+const hederaConfigured = !!(
+  process.env.HEDERA_OPERATOR_ID &&
+  process.env.HEDERA_OPERATOR_KEY
+);
+
+// AI collar optimization endpoint — uses Hedera Agent Kit for agentic balance
+// verification, then returns recommended collar parameters for user approval.
 export async function POST(req: NextRequest) {
   const auth = await verifyAuth(req);
   if (!auth.authenticated) return unauthorized(auth.error);
@@ -18,6 +23,31 @@ export async function POST(req: NextRequest) {
 
     const priceData = await getStockPrice(symbol);
 
+    // Agentic pre-flight: use Hedera Agent Kit to verify treasury can fund this
+    let agentInsight: { feasible: boolean; treasuryBalance?: string; agentResponse?: string } = { feasible: true };
+    if (hederaConfigured && process.env.MINIMAX_API_KEY) {
+      try {
+        const { runAgent } = await import('@/lib/hedera-agent');
+        const usdcId = process.env.USDC_TEST_TOKEN_ID;
+        const operatorId = process.env.HEDERA_OPERATOR_ID;
+        const advanceHts = Math.floor(amount * 1e6);
+
+        const result = await runAgent(
+          `Check the token balances for treasury account ${operatorId}. ` +
+          `I need to verify it has at least ${advanceHts} units (${amount} USDC with 6 decimals) ` +
+          `of token ${usdcId} to fund a $${amount} advance against ${symbol} shares. ` +
+          `Reply with whether the treasury can fund this, and the current USDC balance.`
+        );
+        agentInsight = {
+          feasible: !result.text.toLowerCase().includes('insufficient'),
+          agentResponse: result.text,
+        };
+      } catch (agentErr) {
+        // Agent check is non-blocking �� log and continue with regular flow
+        console.warn('[ai-agent] Agentic pre-flight failed, continuing:', agentErr instanceof Error ? agentErr.message : agentErr);
+      }
+    }
+
     const recommendation = await optimizeCollar({
       symbol,
       stockPrice: priceData.price,
@@ -27,6 +57,14 @@ export async function POST(req: NextRequest) {
       userRiskPreference: riskPreference,
       previousCollars,
     });
+
+    // Add agent warning if treasury might not cover the advance
+    if (!agentInsight.feasible) {
+      recommendation.warnings = [
+        ...(recommendation.warnings || []),
+        'AI agent detected treasury may have insufficient USDC for this advance',
+      ];
+    }
 
     const collar = calculateOptimizedCollar(amount, priceData.price, recommendation);
 
@@ -54,6 +92,10 @@ export async function POST(req: NextRequest) {
         change: priceData.change,
         changePercent: priceData.changePercent,
       },
+      agent: agentInsight.agentResponse ? {
+        response: agentInsight.agentResponse,
+        feasible: agentInsight.feasible,
+      } : undefined,
     });
   } catch (error) {
     console.error('AI optimization error:', error);

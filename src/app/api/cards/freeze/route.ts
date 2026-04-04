@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { freezeCard, unfreezeCard } from '@/lib/lithic';
 import { getNotes } from '@/lib/spend-notes';
+import { getUser } from '@/lib/user-registry';
 import { supabase } from '@/lib/supabase';
 import { verifyAuth, unauthorized } from '@/lib/auth';
 
@@ -15,10 +16,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'cardToken required' }, { status: 400 });
     }
 
-    // Verify the authenticated user owns this card via their email → userAccountId mapping
-    // In the in-memory store, notes are keyed by userAccountId which maps to the auth email
-    const allNotes = await getNotes();
-    const ownerNote = allNotes.find(
+    // Look up the authenticated user's Hedera account and scope the query
+    const user = await getUser(auth.email);
+    if (!user?.hederaAccountId) {
+      return NextResponse.json({ error: 'User account not found' }, { status: 404 });
+    }
+
+    const userNotes = await getNotes(user.hederaAccountId);
+    const ownerNote = userNotes.find(
       (n) => n.cardToken === cardToken
     );
 

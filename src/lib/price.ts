@@ -35,16 +35,16 @@ const FALLBACK_PRICES: Record<string, PriceData> = {
   },
 };
 
-// Cache to avoid hammering the API
-let priceCache: Record<string, PriceData> = {};
-let lastFetch = 0;
+// Cache to avoid hammering the API (per-symbol timestamps)
+const priceCache: Record<string, PriceData> = {};
+const lastFetchPerSymbol: Record<string, number> = {};
 const CACHE_TTL = 30_000; // 30 seconds
 
 export async function getStockPrice(symbol: string): Promise<PriceData> {
   const now = Date.now();
 
-  // Return cached if fresh
-  if (priceCache[symbol] && now - lastFetch < CACHE_TTL) {
+  // Return cached if fresh (per-symbol)
+  if (priceCache[symbol] && now - (lastFetchPerSymbol[symbol] ?? 0) < CACHE_TTL) {
     return { ...priceCache[symbol], source: 'cached' };
   }
 
@@ -63,7 +63,7 @@ export async function getStockPrice(symbol: string): Promise<PriceData> {
           source: 'chainlink',
         };
         priceCache[symbol] = data;
-        lastFetch = now;
+        lastFetchPerSymbol[symbol] = now;
         console.log(`[price] ${symbol}: $${collar.price.toFixed(2)} (Chainlink oracle)`);
         return data;
       }
@@ -92,7 +92,7 @@ export async function getStockPrice(symbol: string): Promise<PriceData> {
     };
 
     priceCache[symbol] = data;
-    lastFetch = now;
+    lastFetchPerSymbol[symbol] = now;
     return data;
   } catch (error) {
     console.error(`[price] Yahoo Finance failed for ${symbol}:`, error instanceof Error ? error.message : error);

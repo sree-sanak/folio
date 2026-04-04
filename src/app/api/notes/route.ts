@@ -16,7 +16,11 @@ export async function GET(req: NextRequest) {
   const id = searchParams.get('id');
 
   if (id) {
-    const note = await getNote(parseInt(id));
+    const noteId = parseInt(id, 10);
+    if (Number.isNaN(noteId)) {
+      return NextResponse.json({ error: 'Invalid note ID' }, { status: 400 });
+    }
+    const note = await getNote(noteId);
     if (!note || note.userAccountId !== user.hederaAccountId) {
       return NextResponse.json({ error: 'Note not found' }, { status: 404 });
     }

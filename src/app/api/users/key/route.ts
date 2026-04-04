@@ -12,6 +12,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'email required' }, { status: 400 });
   }
 
+  // Users can only access their own keys
+  if (email !== auth.email) {
+    return unauthorized('Cannot access another user\'s keys');
+  }
+
   const user = await getUser(email);
   if (!user) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -42,6 +47,11 @@ export async function POST(req: NextRequest) {
         { error: 'email, encryptedKey, keySalt, keyIv required' },
         { status: 400 }
       );
+    }
+
+    // Users can only store keys for their own account
+    if (email !== postAuth.email) {
+      return unauthorized('Cannot modify another user\'s keys');
     }
 
     const user = await getUser(email);

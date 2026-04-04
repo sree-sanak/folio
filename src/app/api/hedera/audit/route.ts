@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const limit = parseInt(req.nextUrl.searchParams.get('limit') || '25');
+    const limit = parseInt(req.nextUrl.searchParams.get('limit') || '25', 10) || 25;
     const raw = await getTopicMessages(topicId, limit);
 
     const messages = raw.map((msg) => {
@@ -35,6 +35,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ messages });
   } catch (error) {
     console.error('Audit trail error:', error);
-    return NextResponse.json({ messages: [], error: 'Failed to fetch audit trail' });
+    return NextResponse.json({ messages: [], error: 'Failed to fetch audit trail' }, { status: 500 });
   }
 }

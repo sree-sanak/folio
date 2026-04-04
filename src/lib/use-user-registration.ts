@@ -125,7 +125,7 @@ export function useUserRegistration() {
         // If we already have a key locally, try normal registration
         // Read directly from localStorage to avoid race with useEffect state
         const localHasKey = hasKeypair();
-        let pubKey = localHasKey ? getStoredPublicKey() : publicKeyDer;
+        const pubKey = localHasKey ? getStoredPublicKey() : publicKeyDer;
         if (localHasKey && pubKey) {
           setStatus('creating-account');
           const res = await authFetch('/api/users/register', {

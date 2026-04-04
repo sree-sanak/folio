@@ -47,6 +47,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ holdings, source: 'hedera' });
   } catch (error) {
     console.error('Hedera holdings error:', error);
-    return NextResponse.json({ holdings: [], source: 'error' });
+    return NextResponse.json({ holdings: [], source: 'error' }, { status: 500 });
   }
 }

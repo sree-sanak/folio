@@ -6,11 +6,13 @@
 const mockTransferToken = jest.fn().mockResolvedValue('tx-transfer');
 const mockGetOperatorId = jest.fn().mockReturnValue({ toString: () => '0.0.6256036' });
 const mockSubmitAuditMessage = jest.fn().mockResolvedValue(undefined);
+const mockSubmitSignedTransaction = jest.fn().mockResolvedValue(undefined);
 
 jest.mock('../hedera', () => ({
   transferToken: mockTransferToken,
   getOperatorId: mockGetOperatorId,
   submitAuditMessage: mockSubmitAuditMessage,
+  submitSignedTransaction: mockSubmitSignedTransaction,
 }));
 
 const mockGetNote = jest.fn();
@@ -66,12 +68,17 @@ describe('escrow executor', () => {
     it('returns all collateral shares to user and logs audit', async () => {
       mockGetNote.mockResolvedValue({ ...activeNote });
 
-      const result = await executeRepayment(1, '0.0.99999');
+      const fakeSignedTx = Buffer.from('fake-signed-tx').toString('base64');
+      const result = await executeRepayment(1, '0.0.99999', fakeSignedTx);
 
       expect(result.outcome).toBe('repaid');
       expect(result.sharesToReturnHts).toBe(500_000);
 
-      // Shares from operator back to user (only transferToken call — USDC
+      // User-signed USDC repayment submitted
+      expect(mockSubmitSignedTransaction).toHaveBeenCalledWith(
+        expect.any(Uint8Array),
+      );
+      // Shares from operator back to user (only transferToken call, USDC
       // repayment is now user-signed via signedRepayTxBytes, not server-side)
       expect(mockTransferToken).toHaveBeenCalledWith(
         '0.0.100', '0.0.6256036', '0.0.99999', 500_000,

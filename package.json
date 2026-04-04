@@ -20,6 +20,7 @@
     "@hashgraph/sdk": "^2.81.0",
     "@supabase/supabase-js": "^2.101.1",
     "ai": "^6.0.146",
+    "hedera-agent-kit": "^3.8.2",
     "jose": "^6.2.2",
     "next": "16.2.2",
     "plaid": "^41.4.0",

@@ -98,7 +98,7 @@ describe('GET /api/hedera/audit', () => {
     const res = await GET(makeRequest('/api/hedera/audit'));
     const body = await res.json();
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(500);
     expect(body.messages).toEqual([]);
     expect(body.error).toBe('Failed to fetch audit trail');
   });

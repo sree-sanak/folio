@@ -285,18 +285,7 @@ export interface OptimizedCollarResult {
   capPct: number;
 }
 
-function getThirdFriday(year: number, month: number): Date {
-  const first = new Date(year, month, 1);
-  const day = first.getDay();
-  const firstFriday = day <= 5 ? 5 - day + 1 : 5 + 7 - day + 1;
-  return new Date(year, month, firstFriday + 14);
-}
-
-function getExpiryDate(months: number): Date {
-  const now = new Date();
-  const target = new Date(now.getFullYear(), now.getMonth() + months, 1);
-  return getThirdFriday(target.getFullYear(), target.getMonth());
-}
+import { getExpiryDate } from './collar';
 
 const HTS_DECIMALS = 6;
 

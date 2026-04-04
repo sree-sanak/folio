@@ -117,6 +117,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ holdings });
   } catch (error) {
     console.error('User balances error:', error);
-    return NextResponse.json({ holdings: [] });
+    return NextResponse.json({ holdings: [] }, { status: 500 });
   }
 }

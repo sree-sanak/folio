@@ -2,6 +2,34 @@
 
 All notable changes to Folio will be documented in this file.
 
+## [0.2.7.0] - 2026-04-05
+
+### Added
+- Hedera Agent Kit integration with MiniMax M1 for autonomous on-chain operations (AI & Agentic Payments bounty)
+- AI agent endpoint (`/api/ai/agent`) supporting freeform prompts and structured actions (balance checks, audit logs, collar analysis)
+- Agentic pre-flight in collar optimization: AI agent verifies treasury USDC balance before recommending advances
+- Folio logo as SVG favicon replacing default Next.js icon
+
+### Fixed
+- Mirror node transaction ID normalization only replaces timestamp dot, not account ID dots
+- Auth demo bypass gated to non-production environments (was active in all environments)
+- USDC rounding in escrow uses `Math.round` instead of `Math.floor` to prevent off-by-one losses
+- Chainlink route now requires authentication (was previously unprotected)
+- Users can only access/modify their own encryption keys via ownership checks
+- Card freeze endpoint scoped to authenticated user's notes (was querying all notes)
+- parseInt calls include radix and NaN fallback across audit, transactions, and notes routes
+- Error responses return proper 500 status codes instead of 200 with error body
+- Note ID validation rejects non-numeric IDs with 400 instead of passing NaN
+- SpendFlow amount input prevents multiple decimal points
+- `selectedNoteId` falsy check changed to `!== null` so noteId 0 works correctly
+- Per-symbol price cache prevents stale data when fetching different stock symbols
+
+### Changed
+- Removed dead EvmWallet component (duplicated in Settings.tsx)
+- Removed duplicated `getThirdFriday`/`getExpiryDate` from ai-collar-optimizer, imports from collar.ts
+- Removed dead `onViewNote` prop from CardResult component
+- Updated escrow and AiBubble tests for signed-transaction and two-step repay patterns
+
 ## [0.2.6.1] - 2026-04-05
 
 ### Added

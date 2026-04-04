@@ -219,8 +219,7 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
 
   return (
     <div className="space-y-8">
-      {/* Shimmer animation for AI loading indicator */}
-      <style>{`@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
+      {/* Shimmer animation uses global @keyframes shimmer from globals.css */}
       {/* Header */}
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="p-2 rounded-lg cursor-pointer transition-colors"
@@ -319,7 +318,12 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
           <input
             type="text"
             value={amount}
-            onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
+            onChange={(e) => {
+              const val = e.target.value.replace(/[^0-9.]/g, '');
+              // Prevent multiple decimal points
+              const parts = val.split('.');
+              setAmount(parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : val);
+            }}
             placeholder="0"
             className="text-5xl font-bold text-center bg-transparent border-none outline-none w-48 placeholder:text-[var(--text-tertiary)]"
             style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', caretColor: 'var(--accent)' }}

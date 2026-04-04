@@ -6,8 +6,6 @@ import { formatUsd, formatShares } from '@/lib/collar';
 
 interface CardResultProps {
   result: SpendResult;
-  onViewNote?: () => void;
-  onViewCards: () => void;
   onViewCardDetail: () => void;
   onDone: () => void;
 }
@@ -17,7 +15,7 @@ function formatPan(pan: string): string {
   return clean.replace(/(.{4})/g, '$1 ').trim();
 }
 
-export default function CardResult({ result, onViewNote, onViewCards, onViewCardDetail, onDone }: CardResultProps) {
+export default function CardResult({ result, onViewCardDetail, onDone }: CardResultProps) {
   const [copied, setCopied] = useState(false);
   const [showCvv, setShowCvv] = useState(false);
   const [showPan, setShowPan] = useState(false);

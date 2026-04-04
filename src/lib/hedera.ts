@@ -215,7 +215,7 @@ export async function transferToken(
 
   const signed = await tx.sign(operatorKey);
   const response = await signed.execute(client);
-  const receipt = await response.getReceipt(client);
+  await response.getReceipt(client);
 
   return response.transactionId.toString();
 }
@@ -568,7 +568,7 @@ export async function submitSignedTransaction(
   const tx = Transaction.fromBytes(signedTxBytes);
   await tx.sign(operatorKey);
   const response = await tx.execute(client);
-  const receipt = await response.getReceipt(client);
+  await response.getReceipt(client);
 
   return response.transactionId.toString();
 }

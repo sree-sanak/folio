@@ -103,7 +103,7 @@ export async function getTransactionById(
   txId: string
 ): Promise<MirrorTransaction | null> {
   // Convert 0.0.12345@1234567890.000 → 0.0.12345-1234567890-000
-  const normalized = txId.replace('@', '-').replace('.', '-');
+  const normalized = txId.replace('@', '-').replace(/\.(\d+)$/, '-$1');
   const res = await fetch(
     `${MIRROR_BASE}/api/v1/transactions/${normalized}`
   );

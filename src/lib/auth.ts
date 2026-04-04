@@ -39,14 +39,17 @@ export async function verifyAuth(req: NextRequest): Promise<AuthResult | AuthErr
 
   const keySet = getJWKS();
   if (!keySet) {
-    // Dynamic Labs not configured — allow in demo mode with basic JWT decode
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      if (payload.email) {
-        return { authenticated: true, email: payload.email, sub: payload.sub || payload.email };
+    // Dynamic Labs not configured — allow in demo mode (development/test only)
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload.email) {
+          console.warn('[auth] Demo mode: JWT signature NOT verified (development only)');
+          return { authenticated: true, email: payload.email, sub: payload.sub || payload.email };
+        }
+      } catch {
+        // fall through
       }
-    } catch {
-      // fall through
     }
     return { authenticated: false, error: 'Auth not configured' };
   }
