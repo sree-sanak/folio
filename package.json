@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "setup": "npx tsx scripts/setup.ts"
   },
   "dependencies": {
     "@dynamic-labs/ethereum": "^4.75.0",

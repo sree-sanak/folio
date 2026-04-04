@@ -41,7 +41,26 @@ async function main() {
   const tslaId = (await tslaResp.getReceipt(client)).tokenId!;
   console.log(`  MOCK_TSLA_TOKEN_ID=${tslaId}`);
 
-  // 2. Create USDC-TEST (fungible, decimal 6)
+  // 2. Create MOCK-AAPL (fungible, decimal 6)
+  console.log('Creating MOCK-AAPL...');
+  const aaplCreate = new TokenCreateTransaction()
+    .setTokenName('Mock Apple')
+    .setTokenSymbol('MOCK-AAPL')
+    .setTokenType(TokenType.FungibleCommon)
+    .setDecimals(6)
+    .setInitialSupply(10_000_000) // 10 shares = 10 * 10^6
+    .setTreasuryAccountId(operatorId)
+    .setSupplyType(TokenSupplyType.Infinite)
+    .setSupplyKey(operatorKey.publicKey)
+    .setAdminKey(operatorKey.publicKey)
+    .freezeWith(client);
+
+  const aaplSigned = await aaplCreate.sign(operatorKey);
+  const aaplResp = await aaplSigned.execute(client);
+  const aaplId = (await aaplResp.getReceipt(client)).tokenId!;
+  console.log(`  MOCK_AAPL_TOKEN_ID=${aaplId}`);
+
+  // 4. Create USDC-TEST (fungible, decimal 6)
   console.log('Creating USDC-TEST...');
   const usdcCreate = new TokenCreateTransaction()
     .setTokenName('Test USDC')
@@ -60,7 +79,7 @@ async function main() {
   const usdcId = (await usdcResp.getReceipt(client)).tokenId!;
   console.log(`  USDC_TEST_TOKEN_ID=${usdcId}`);
 
-  // 3. Create SPEND-NOTE NFT collection
+  // 5. Create SPEND-NOTE NFT collection
   console.log('Creating SPEND-NOTE NFT...');
   const noteCreate = new TokenCreateTransaction()
     .setTokenName('Folio Spend Note')
@@ -82,6 +101,7 @@ async function main() {
 
   console.log('\n--- Add these to your .env.local ---');
   console.log(`MOCK_TSLA_TOKEN_ID=${tslaId}`);
+  console.log(`MOCK_AAPL_TOKEN_ID=${aaplId}`);
   console.log(`USDC_TEST_TOKEN_ID=${usdcId}`);
   console.log(`SPEND_NOTE_TOKEN_ID=${noteId}`);
 
