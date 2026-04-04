@@ -14,7 +14,7 @@
 ## Architecture
 
 ```
-User (Dynamic wallet)
+User (email login)
       │
       ▼
 Next.js Frontend
@@ -48,7 +48,7 @@ npm run dev       # http://localhost:3000
 
 - **Next.js 16** — App Router, TypeScript, Tailwind CSS
 - **Hedera HTS** — Fungible tokens (MOCK-TSLA, MOCK-AAPL, USDC-TEST) + NFT Spend Notes
-- **Dynamic** — Embedded wallets, email/social login
+- **Dynamic** — Email-only authentication (no wallet UX)
 - **Yahoo Finance** — Real-time stock prices
 - **Pinata** — IPFS metadata storage for Spend Note NFTs
 
@@ -62,7 +62,7 @@ npm run dev       # http://localhost:3000
 
 ### Dynamic
 
-- Embedded wallet creation (email/social login, no MetaMask required)
+- Email-only authentication (OTP) — no wallets, no MetaMask, no crypto UX
 - Powers the "sign in to spend" auth flow
 
 ## How the Collar Works
