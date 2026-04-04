@@ -2,6 +2,11 @@
 
 All notable changes to Folio will be documented in this file.
 
+## [0.2.0.2] - 2026-04-04
+
+### Fixed
+- "Connect Brokerage" button was hidden when showing demo holdings, making it impossible to link a real Plaid account
+
 ## [0.2.0.1] - 2026-04-04
 
 ### Fixed

@@ -52,7 +52,7 @@ export default function Home() {
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
   const [selectedHolding, setSelectedHolding] = useState<Holding | null>(null);
 
-  const { status: plaidStatus, holdings, openLink, isPlaidAvailable } = usePlaidHoldings();
+  const { status: plaidStatus, holdings, openLink, isPlaidAvailable, isDemo } = usePlaidHoldings();
 
   const navMap: Record<Screen, string> = {
     portfolio: 'portfolio',
@@ -119,6 +119,7 @@ export default function Home() {
               prices={prices}
               plaidStatus={plaidStatus}
               isPlaidAvailable={isPlaidAvailable}
+              isDemo={isDemo}
               onConnectBrokerage={openLink}
               onSpendFromHolding={handleSpendFromHolding}
               onSpend={() => {
