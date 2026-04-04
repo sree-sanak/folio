@@ -1,30 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getNotes, getNote, updateNoteStatus } from '@/lib/spend-notes';
 import { verifyAuth, unauthorized } from '@/lib/auth';
+import { getUser } from '@/lib/user-registry';
 
 export async function GET(req: NextRequest) {
   const auth = await verifyAuth(req);
   if (!auth.authenticated) return unauthorized(auth.error);
 
-  const { searchParams } = new URL(req.url);
+  const user = await getUser(auth.email);
+  if (!user?.hederaAccountId) {
+    return NextResponse.json({ notes: [] });
+  }
+
+  const searchParams = req.nextUrl.searchParams;
   const id = searchParams.get('id');
-  const userAccountId = searchParams.get('userAccountId');
 
   if (id) {
     const note = await getNote(parseInt(id));
-    if (!note) {
+    if (!note || note.userAccountId !== user.hederaAccountId) {
       return NextResponse.json({ error: 'Note not found' }, { status: 404 });
     }
     return NextResponse.json({ notes: [note] });
   }
 
-  const notes = await getNotes(userAccountId ?? undefined);
+  const notes = await getNotes(user.hederaAccountId);
   return NextResponse.json({ notes });
 }
 
 export async function PATCH(req: NextRequest) {
   const auth = await verifyAuth(req);
   if (!auth.authenticated) return unauthorized(auth.error);
+
+  const user = await getUser(auth.email);
+  if (!user?.hederaAccountId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  }
 
   const body = await req.json();
   const noteId = body.noteId ?? body.id;
@@ -35,6 +45,11 @@ export async function PATCH(req: NextRequest) {
       { error: 'noteId and status required' },
       { status: 400 }
     );
+  }
+
+  const existing = await getNote(noteId);
+  if (!existing || existing.userAccountId !== user.hederaAccountId) {
+    return NextResponse.json({ error: 'Note not found' }, { status: 404 });
   }
 
   const note = await updateNoteStatus(noteId, status);

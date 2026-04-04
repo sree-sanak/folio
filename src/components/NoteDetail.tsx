@@ -61,8 +61,7 @@ export default function NoteDetail({ noteId, onBack }: NoteDetailProps) {
         setNote({ ...note, status: 'repaid' });
       }
     } catch {
-      // Optimistic update even on failure for demo
-      setNote({ ...note, status: 'repaid' });
+      // Show error state instead of false success
     } finally {
       setRepaying(false);
     }

@@ -16,6 +16,12 @@
 **Depends on:** Plaid production access approved.
 **Note:** Persistent storage (Supabase `plaid_tokens` table) and per-user isolation (keyed by auth email) were completed in v0.2.3.0.
 
+## Post-Hackathon: AI Bubble Multiple Advice Types (P3, M)
+**What:** Expand the AI bubble component to surface multiple advice types beyond repayment nudges: collar status updates, market move alerts, spending suggestions.
+**Why:** The bubble is built as a global container but only surfaces repayment nudges during the hackathon. Multiple advice types make the AI agent feel real and useful.
+**Effort:** Human ~4 hours / CC ~30 min
+**Depends on:** Repayment bubble shipping first.
+
 ## Post-Hackathon: Server-Side Spend Locking (P3, S)
 **What:** Add per-user mutex/lock in the spend API route to prevent concurrent spend requests from double-locking the same TSLA shares.
 **Why:** Client-side button disabling prevents casual double-clicks but two browser tabs can still race. In production with real money, this is a must.

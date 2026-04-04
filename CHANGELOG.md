@@ -5,6 +5,12 @@ All notable changes to Folio will be documented in this file.
 ## [0.2.6.0] - 2026-04-04
 
 ### Added
+- Emerald AI bubble that watches your positions and suggests when to settle advances
+- Outstanding Advance card on Portfolio screen showing most urgent active note
+- Bottom sheet settle flow with one-tap repayment from the AI bubble
+- Contextual suggestion logic: near-expiry, near-cap, stock-up, and default variants
+- Active notes state management in page.tsx with automatic refresh after spend/settle
+- 17 new tests covering AI bubble visibility, suggestions, settle flow, and Portfolio advance card
 - MockUSDC contract on Base Sepolia with public mint for testnet demos
 - Foundry deploy script (DeployMockUSDC.s.sol) and SetPriceFeeds script for Chainlink oracle setup
 - Auto-mint 25 USDC to user's Dynamic embedded wallet on registration
@@ -12,6 +18,10 @@ All notable changes to Folio will be documented in this file.
 - Stale oracle fallback: Dynamic server wallet pushes fresh CollarOracle data when CRE workflow is behind
 
 ### Changed
+- Notes API routes now user-scoped via auth email lookup (previously accepted any userAccountId)
+- Price fetch includes collateral symbols from active notes for accurate AI suggestions
+- NoteDetail catch block no longer falsely marks note as repaid on API failure
+- Portfolio "Available to Spend" card shrinks to single line when an advance is active
 - KYC grant and token unfreeze now wired into user registration (stock tokens have freezeDefault=true)
 - Dynamic server wallet repurposed from redundant USDC transfer to oracle maintenance
 - EVM settlement block now encodes real ERC-20 calldata instead of empty 0x stub
