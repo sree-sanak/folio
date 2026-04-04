@@ -8,6 +8,12 @@ import type { PlaidStatus } from '@/lib/use-plaid-holdings';
 import { formatUsd, formatShares } from '@/lib/collar';
 import { authFetch } from '@/lib/use-auth-fetch';
 import { useHederaKey } from '@/lib/use-hedera-key';
+import { useAnimatedNumber } from '@/lib/use-animated-number';
+
+function AnimatedValue({ value, prefix = '' }: { value: number; prefix?: string }) {
+  const animated = useAnimatedNumber(value);
+  return <>{prefix}{animated.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</>;
+}
 
 interface PortfolioProps {
   holdings: Holding[];
@@ -46,6 +52,12 @@ export default function Portfolio({
   const [settleSuccess, setSettleSuccess] = useState(false);
   const { signTransaction } = useHederaKey();
 
+  // Calculate locked shares per symbol from active notes
+  const lockedBySymbol = activeNotes.reduce<Record<string, number>>((acc, note) => {
+    acc[note.symbol] = (acc[note.symbol] || 0) + note.shares;
+    return acc;
+  }, {});
+
   const visibleHoldings = holdings.filter((h) => h.shares > 0);
 
   // Most urgent active note (closest expiry, then largest amount)
@@ -76,6 +88,8 @@ export default function Portfolio({
     return sum + h.shares * change;
   }, 0);
 
+  const animatedTotal = useAnimatedNumber(totalValue);
+
   const isPositive = totalChange >= 0;
   const hasHoldings = visibleHoldings.length > 0;
 
@@ -99,7 +113,7 @@ export default function Portfolio({
           </span>
         </div>
         <div className="text-[44px] font-bold tracking-tight leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>
-          ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          ${animatedTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </div>
         <div className="flex items-center gap-2 mt-4">
           <span className="text-sm font-semibold px-2.5 py-1 rounded-lg"
@@ -267,6 +281,8 @@ export default function Portfolio({
             {visibleHoldings.map((h) => {
               const price = prices[h.symbol]?.price ?? 0;
               const change = prices[h.symbol]?.changePercent ?? 0;
+              const locked = lockedBySymbol[h.symbol] || 0;
+              const available = Math.max(0, h.shares - locked);
               const value = h.shares * price;
               const isUp = change >= 0;
 
@@ -284,7 +300,11 @@ export default function Portfolio({
                   <div className="flex-1">
                     <div className="text-[15px] font-semibold">{h.name}</div>
                     <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
-                      {h.shares} share{h.shares !== 1 ? 's' : ''}{isDemo && ' · HTS'}
+                      {locked > 0 ? (
+                        <>{formatShares(available)} available · <span style={{ color: '#F59E0B' }}>{formatShares(locked)} locked</span>{isDemo && ' · HTS'}</>
+                      ) : (
+                        <>{h.shares} share{h.shares !== 1 ? 's' : ''}{isDemo && ' · HTS'}</>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
@@ -358,14 +378,14 @@ export default function Portfolio({
                     <div className="text-[15px] font-semibold">{h.name}</div>
                     <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
                       {isUsdc
-                        ? `${h.shares.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC`
+                        ? <><AnimatedValue value={h.shares} /> USDC</>
                         : `${h.shares} ${h.symbol}`
                       }
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="text-[15px] font-semibold" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                      ${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <AnimatedValue value={value} prefix="$" />
                     </div>
                   </div>
                 </button>
@@ -422,13 +442,22 @@ export default function Portfolio({
       {/* Available to Spend */}
       {hasHoldings && (
         urgentNote ? (
-          <div className="card px-5 py-4 flex items-center justify-between">
-            <div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-              Available to Spend
+          <div className="card px-5 py-4">
+            <div className="flex items-center justify-between">
+              <div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                Available to Spend
+              </div>
+              <div className="text-[18px] font-bold" style={{ color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>
+                ${animatedTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
             </div>
-            <div className="text-[18px] font-bold" style={{ color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>
-              ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
+            {Object.keys(lockedBySymbol).length > 0 && (
+              <div className="text-[11px] mt-2" style={{ color: '#F59E0B' }}>
+                {Object.entries(lockedBySymbol).map(([sym, shares]) => (
+                  <span key={sym}>{formatShares(shares)} {sym} locked as collateral{' '}</span>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           <div className="card p-6 relative overflow-hidden">
@@ -438,7 +467,7 @@ export default function Portfolio({
               Available to Spend
             </div>
             <div className="text-[30px] font-bold" style={{ color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>
-              ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${animatedTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div className="text-[13px] mt-2" style={{ color: 'var(--text-tertiary)' }}>
               Spend directly from your portfolio

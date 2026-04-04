@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
 
     const collar = calculateOptimizedCollar(amount, priceData.price, recommendation);
 
-    let txId = 'demo-tx-' + Date.now();
+    let txId = '';
 
     const stockTokenId = getTokenIdForSymbol(symbol);
     if (hederaConfigured && stockTokenId) {
@@ -74,6 +74,14 @@ export async function POST(req: NextRequest) {
       const operatorId = getOperatorId().toString();
       const usdcTokenId = process.env.USDC_TEST_TOKEN_ID!;
       const noteTokenId = process.env.SPEND_NOTE_TOKEN_ID!;
+
+      // Collateral lock is required — reject if not signed
+      if (!signedCollateralTxBytes) {
+        return NextResponse.json(
+          { error: 'Collateral lock signature is required. Please try again.' },
+          { status: 400 }
+        );
+      }
 
       // Pre-flight: verify treasury has enough USDC before proceeding
       const treasuryBalances = await getTokenBalances(operatorId);
@@ -86,10 +94,8 @@ export async function POST(req: NextRequest) {
       }
 
       // Submit client-signed collateral lock (server adds operator co-signature)
-      if (signedCollateralTxBytes) {
-        const bytes = Uint8Array.from(Buffer.from(signedCollateralTxBytes, 'base64'));
-        txId = await submitSignedTransaction(bytes);
-      }
+      const bytes = Uint8Array.from(Buffer.from(signedCollateralTxBytes, 'base64'));
+      txId = await submitSignedTransaction(bytes);
 
       // Transfer USDC advance (operator-only, no user signature needed)
       const advanceTarget = recipientAccountId || userAccountId;

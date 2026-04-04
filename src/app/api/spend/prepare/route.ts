@@ -41,14 +41,19 @@ export async function POST(req: NextRequest) {
       const userBalances = await getTokenBalances(userAccountId);
       const userStockBalance = userBalances.get(stockTokenId) ?? 0;
 
-      if (userStockBalance >= collar.sharesHts) {
-        const txBytes = await prepareCollateralLock(
-          stockTokenId,
-          userAccountId,
-          collar.sharesHts
+      if (userStockBalance < collar.sharesHts) {
+        return NextResponse.json(
+          { error: `Insufficient ${symbol} balance. You have ${userStockBalance} tokens but need ${collar.sharesHts} for collateral.` },
+          { status: 400 }
         );
-        collateralLockTxBytes = Buffer.from(txBytes).toString('base64');
       }
+
+      const txBytes = await prepareCollateralLock(
+        stockTokenId,
+        userAccountId,
+        collar.sharesHts
+      );
+      collateralLockTxBytes = Buffer.from(txBytes).toString('base64');
     }
 
     return NextResponse.json({

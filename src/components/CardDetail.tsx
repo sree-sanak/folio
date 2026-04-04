@@ -27,11 +27,20 @@ interface CardNote {
   durationMonths: number;
 }
 
+function formatPan(pan: string): string {
+  const clean = pan.replace(/\s/g, '');
+  return clean.replace(/(.{4})/g, '$1 ').trim();
+}
+
 export default function CardDetail({ noteId, onBack }: CardDetailProps) {
   const [note, setNote] = useState<CardNote | null>(null);
   const [loading, setLoading] = useState(true);
   const [freezing, setFreezing] = useState(false);
   const [cardFrozen, setCardFrozen] = useState(false);
+  const [showPan, setShowPan] = useState(false);
+  const [showCvv, setShowCvv] = useState(false);
+  const [cardDetails, setCardDetails] = useState<{ pan: string; cvv: string; expMonth: string; expYear: string } | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   useEffect(() => {
     const fetchNote = async () => {
@@ -50,6 +59,24 @@ export default function CardDetail({ noteId, onBack }: CardDetailProps) {
     };
     fetchNote();
   }, [noteId]);
+
+  const handleReveal = async () => {
+    if (cardDetails || !note?.cardToken) return;
+    setDetailsLoading(true);
+    try {
+      const res = await authFetch(`/api/cards/details?cardToken=${encodeURIComponent(note.cardToken)}`);
+      const data = await res.json();
+      if (data.card) {
+        setCardDetails(data.card);
+        setShowPan(true);
+        setShowCvv(true);
+      }
+    } catch {
+      // silent
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
 
   const handleFreeze = async () => {
     if (!note?.cardToken) return;
@@ -173,28 +200,45 @@ export default function CardDetail({ noteId, onBack }: CardDetailProps) {
           }} />
         </div>
 
-        {/* Card Number */}
-        <div className="relative mt-4 text-left">
-          <div className="text-[20px] font-mono font-medium tracking-[0.15em]"
+        {/* Card Number — tap to reveal */}
+        <button
+          onClick={() => {
+            if (!cardDetails) { handleReveal(); return; }
+            setShowPan(!showPan);
+          }}
+          className="relative mt-4 text-left cursor-pointer group w-full"
+          title={showPan && cardDetails ? 'Tap to mask' : 'Tap to reveal'}
+        >
+          <div className="text-[20px] font-mono font-medium tracking-[0.15em] transition-opacity group-hover:opacity-80"
             style={{ color: 'var(--text-primary)' }}>
-            {'•••• •••• •••• '}{note.cardLastFour}
+            {showPan && cardDetails ? formatPan(cardDetails.pan) : `•••• •••• •••• ${note.cardLastFour}`}
           </div>
-        </div>
+          <span className="text-[10px] mt-1 block" style={{ color: 'var(--text-tertiary)' }}>
+            {detailsLoading ? 'Loading...' : showPan && cardDetails ? 'Tap to mask' : 'Tap to reveal'}
+          </span>
+        </button>
 
         {/* Bottom row */}
         <div className="relative flex justify-between items-end mt-4">
           <div className="flex gap-6">
             <div>
-              <div className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Status</div>
-              <div className="text-[14px] font-mono" style={{
-                color: cardFrozen ? 'var(--negative)' : isActive ? 'var(--accent)' : 'var(--text-tertiary)',
-              }}>
-                {cardFrozen ? 'Frozen' : isActive ? 'Active' : note.status}
+              <div className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Expires</div>
+              <div className="text-[14px] font-mono" style={{ color: 'rgba(245,245,247,0.9)' }}>
+                {cardDetails ? `${cardDetails.expMonth}/${cardDetails.expYear.slice(-2)}` : '••/••'}
               </div>
             </div>
             <div>
-              <div className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Source</div>
-              <div className="text-[14px] font-semibold" style={{ color: 'var(--text-secondary)' }}>{note.symbol}</div>
+              <div className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>CVV</div>
+              <button
+                onClick={() => {
+                  if (!cardDetails) { handleReveal(); return; }
+                  setShowCvv(!showCvv);
+                }}
+                className="text-[14px] font-mono cursor-pointer"
+                style={{ color: 'rgba(245,245,247,0.9)' }}
+              >
+                {showCvv && cardDetails ? cardDetails.cvv : '•••'}
+              </button>
             </div>
           </div>
           <div className="text-right">
@@ -208,45 +252,64 @@ export default function CardDetail({ noteId, onBack }: CardDetailProps) {
 
       {/* Quick Actions */}
       {isActive && (
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <button
-            onClick={handleFreeze}
-            disabled={freezing}
-            className="card flex items-center justify-center gap-2.5 p-4 cursor-pointer transition-colors"
-            style={{
-              border: cardFrozen ? '1px solid rgba(16,185,129,0.2)' : '1px solid rgba(239,68,68,0.2)',
-            }}
-          >
-            {cardFrozen ? (
-              <>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-                <span className="text-[13px] font-semibold" style={{ color: 'var(--accent)' }}>
-                  {freezing ? 'Unfreezing...' : 'Unfreeze'}
-                </span>
-              </>
-            ) : (
-              <>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--negative)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 5-5 5 5 0 0 1 5 5v4" />
-                </svg>
-                <span className="text-[13px] font-semibold" style={{ color: 'var(--negative)' }}>
-                  {freezing ? 'Freezing...' : 'Freeze Card'}
-                </span>
-              </>
-            )}
-          </button>
+        <div className="space-y-3 mb-6">
+          {/* Reveal Card Details */}
+          {!cardDetails && (
+            <button
+              onClick={handleReveal}
+              disabled={detailsLoading}
+              className="w-full card flex items-center justify-center gap-2.5 p-4 cursor-pointer transition-colors"
+              style={{ border: '1px solid rgba(16,185,129,0.2)' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+              </svg>
+              <span className="text-[13px] font-semibold" style={{ color: 'var(--accent)' }}>
+                {detailsLoading ? 'Loading...' : 'Reveal Card Details'}
+              </span>
+            </button>
+          )}
 
-          <button
-            onClick={onBack}
-            className="card flex items-center justify-center gap-2.5 p-4 cursor-pointer transition-colors"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="1" y="4" width="22" height="16" rx="2" ry="2" /><line x1="1" y1="10" x2="23" y2="10" />
-            </svg>
-            <span className="text-[13px] font-semibold" style={{ color: 'var(--text-secondary)' }}>All Cards</span>
-          </button>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={handleFreeze}
+              disabled={freezing}
+              className="card flex items-center justify-center gap-2.5 p-4 cursor-pointer transition-colors"
+              style={{
+                border: cardFrozen ? '1px solid rgba(16,185,129,0.2)' : '1px solid rgba(239,68,68,0.2)',
+              }}
+            >
+              {cardFrozen ? (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  <span className="text-[13px] font-semibold" style={{ color: 'var(--accent)' }}>
+                    {freezing ? 'Unfreezing...' : 'Unfreeze'}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--negative)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 5-5 5 5 0 0 1 5 5v4" />
+                  </svg>
+                  <span className="text-[13px] font-semibold" style={{ color: 'var(--negative)' }}>
+                    {freezing ? 'Freezing...' : 'Freeze Card'}
+                  </span>
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={onBack}
+              className="card flex items-center justify-center gap-2.5 p-4 cursor-pointer transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2" /><line x1="1" y1="10" x2="23" y2="10" />
+              </svg>
+              <span className="text-[13px] font-semibold" style={{ color: 'var(--text-secondary)' }}>All Cards</span>
+            </button>
+          </div>
         </div>
       )}
 

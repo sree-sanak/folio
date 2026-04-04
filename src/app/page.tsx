@@ -146,25 +146,24 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [fetchPrices]);
 
+  const fetchCryptoBalances = useCallback(async () => {
+    if (!folioUser?.hederaAccountId) return;
+    try {
+      const res = await authFetch(`/api/users/balances?accountId=${folioUser.hederaAccountId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCryptoHoldings(data.holdings || []);
+      }
+    } catch { /* ignore */ }
+  }, [folioUser]);
+
   // Fetch user's on-chain token balances (USDC, stocks, etc.)
   useEffect(() => {
     if (!folioUser?.hederaAccountId) return;
-    let cancelled = false;
-
-    async function fetchCryptoBalances() {
-      try {
-        const res = await authFetch(`/api/users/balances?accountId=${folioUser!.hederaAccountId}`);
-        if (res.ok && !cancelled) {
-          const data = await res.json();
-          setCryptoHoldings(data.holdings || []);
-        }
-      } catch { /* ignore */ }
-    }
-
     fetchCryptoBalances();
-    const interval = setInterval(fetchCryptoBalances, 30000);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, [folioUser]);
+    const interval = setInterval(fetchCryptoBalances, 15000);
+    return () => clearInterval(interval);
+  }, [folioUser, fetchCryptoBalances]);
 
   const handleViewHolding = (holding: Holding) => {
     setSelectedHolding(holding);
@@ -180,7 +179,8 @@ export default function Home() {
   const handleSpendComplete = (result: SpendResult) => {
     setLastSpend(result);
     setScreen(result.card ? 'card-result' : 'confirm');
-    fetchNotes(); // Refresh active notes after new spend
+    fetchNotes();
+    fetchCryptoBalances();
   };
 
   const handleViewNote = (noteId: number) => {
