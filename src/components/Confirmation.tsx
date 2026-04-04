@@ -36,7 +36,7 @@ export default function Confirmation({ result, onViewDetails, onDone }: Confirma
         <div className="flex flex-col gap-4">
           {[
             { label: 'Amount', value: formatUsd(result.amount) },
-            { label: 'Collateral', value: `${formatShares(result.shares)} TSLA` },
+            { label: 'Collateral', value: `${formatShares(result.shares)} ${result.symbol}` },
             { label: 'Interest', value: '0%', accent: true },
             { label: 'Repay by', value: formatDate(expiryDate) },
           ].map((row) => (

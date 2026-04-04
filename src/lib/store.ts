@@ -3,6 +3,7 @@
 
 export interface SpendNote {
   id: number;
+  symbol: string; // stock symbol used as collateral
   serial: number; // NFT serial on Hedera
   recipient: string;
   recipientName: string;

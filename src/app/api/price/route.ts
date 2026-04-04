@@ -1,9 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getAllPrices } from '@/lib/price';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const prices = await getAllPrices();
+    const symbolsParam = req.nextUrl.searchParams.get('symbols');
+    const symbols = symbolsParam
+      ? symbolsParam.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean)
+      : undefined;
+
+    const prices = await getAllPrices(symbols);
     return NextResponse.json(prices);
   } catch {
     return NextResponse.json(

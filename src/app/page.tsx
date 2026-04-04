@@ -9,6 +9,8 @@ import Confirmation from '@/components/Confirmation';
 import NotesList from '@/components/NotesList';
 import NoteDetail from '@/components/NoteDetail';
 import { AuthGuard } from '@/components/auth/auth-guard';
+import { usePlaidHoldings } from '@/lib/use-plaid-holdings';
+import type { Holding } from '@/lib/types';
 
 export type Screen = 'portfolio' | 'spend' | 'confirm' | 'notes' | 'note-detail';
 
@@ -21,6 +23,7 @@ export interface PriceData {
 }
 
 export interface SpendResult {
+  symbol: string;
   amount: number;
   shares: number;
   recipientName: string;
@@ -35,6 +38,9 @@ export default function Home() {
   const [prices, setPrices] = useState<Record<string, PriceData>>({});
   const [lastSpend, setLastSpend] = useState<SpendResult | null>(null);
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
+  const [selectedHolding, setSelectedHolding] = useState<Holding | null>(null);
+
+  const { status: plaidStatus, holdings, openLink, isPlaidAvailable } = usePlaidHoldings();
 
   const navMap: Record<Screen, string> = {
     portfolio: 'portfolio',
@@ -46,7 +52,15 @@ export default function Home() {
 
   const fetchPrices = useCallback(async () => {
     try {
-      const res = await fetch('/api/price');
+      // Build symbols list from holdings
+      const symbols = holdings
+        .filter((h) => h.shares > 0)
+        .map((h) => h.symbol);
+      // Always include TSLA and AAPL for fallback display
+      const allSymbols = [...new Set(['TSLA', 'AAPL', ...symbols])];
+      const query = allSymbols.length > 0 ? `?symbols=${allSymbols.join(',')}` : '';
+
+      const res = await fetch(`/api/price${query}`);
       const data = await res.json();
       setPrices(data);
     } catch {
@@ -55,13 +69,18 @@ export default function Home() {
         AAPL: { symbol: 'AAPL', price: 178.5, change: -1.2, changePercent: -0.67, lastUpdated: new Date().toISOString() },
       });
     }
-  }, []);
+  }, [holdings]);
 
   useEffect(() => {
     fetchPrices();
     const interval = setInterval(fetchPrices, 30000);
     return () => clearInterval(interval);
   }, [fetchPrices]);
+
+  const handleSpendFromHolding = (holding: Holding) => {
+    setSelectedHolding(holding);
+    setScreen('spend');
+  };
 
   const handleSpendComplete = (result: SpendResult) => {
     setLastSpend(result);
@@ -81,10 +100,25 @@ export default function Home() {
       <main className="flex-1 flex justify-center pb-20 md:pb-0 main-gradient">
         <div className="w-full max-w-[420px] px-6 py-10">
           {screen === 'portfolio' && (
-            <Portfolio prices={prices} onSpend={() => setScreen('spend')} onViewNotes={() => setScreen('notes')} />
+            <Portfolio
+              holdings={holdings}
+              prices={prices}
+              plaidStatus={plaidStatus}
+              isPlaidAvailable={isPlaidAvailable}
+              onConnectBrokerage={openLink}
+              onSpendFromHolding={handleSpendFromHolding}
+              onSpend={() => {
+                // Default: spend from first holding with shares
+                const first = holdings.find((h) => h.shares > 0);
+                if (first) handleSpendFromHolding(first);
+                else setScreen('spend');
+              }}
+              onViewNotes={() => setScreen('notes')}
+            />
           )}
           {screen === 'spend' && (
             <SpendFlow
+              selectedHolding={selectedHolding || holdings.find((h) => h.shares > 0) || holdings[0]}
               prices={prices}
               onBack={() => setScreen('portfolio')}
               onComplete={handleSpendComplete}

@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       amount,
+      symbol = 'TSLA',
       durationMonths = 1,
       recipientName = 'Someone',
       userAccountId,
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
     }
 
-    const priceData = await getStockPrice('TSLA');
+    const priceData = await getStockPrice(symbol);
     const collar = calculateCollar(amount, priceData.price, durationMonths);
 
     let txId = 'demo-tx-' + Date.now();
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
       const now = new Date().toISOString();
       const { serial } = await mintSpendNoteWithIpfs({
         name: `Spend Note #${Date.now()}`,
-        asset: 'MOCK-TSLA',
+        asset: `MOCK-${symbol}`,
         shares_collared: collar.sharesHts,
         stock_price_at_spend: Math.floor(priceData.price * 1e6),
         collar_floor: Math.floor(collar.floor * 1e6),
@@ -57,6 +58,7 @@ export async function POST(req: NextRequest) {
     }
 
     const note = addNote({
+      symbol,
       serial: hederaConfigured ? 1 : Date.now(),
       recipient: userAccountId || 'demo-user',
       recipientName,

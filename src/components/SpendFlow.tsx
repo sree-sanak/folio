@@ -2,27 +2,31 @@
 
 import { useState } from 'react';
 import type { PriceData, SpendResult } from '@/app/page';
+import type { Holding } from '@/lib/types';
 import { calculateCollar, formatShares, formatUsd, formatDate } from '@/lib/collar';
 import CollarGraph from '@/components/CollarGraph';
 
 interface SpendFlowProps {
+  selectedHolding: Holding;
   prices: Record<string, PriceData>;
   onBack: () => void;
   onComplete: (result: SpendResult) => void;
 }
 
-export default function SpendFlow({ prices, onBack, onComplete }: SpendFlowProps) {
+export default function SpendFlow({ selectedHolding, prices, onBack, onComplete }: SpendFlowProps) {
   const [amount, setAmount] = useState('50');
   const [durationMonths, setDurationMonths] = useState(1);
   const [recipientSelected, setRecipientSelected] = useState(true);
   const [sending, setSending] = useState(false);
   const [expandHow, setExpandHow] = useState(false);
 
-  const priceLoaded = prices.TSLA !== undefined;
-  const tslaPrice = prices.TSLA?.price ?? 225;
+  const { symbol, name: stockName, shares: totalShares, icon: stockIcon, gradient: stockGradient } = selectedHolding;
+
+  const priceLoaded = prices[symbol] !== undefined;
+  const stockPrice = prices[symbol]?.price ?? 0;
   const val = parseFloat(amount) || 0;
-  const maxSpend = 44 * tslaPrice;
-  const collar = calculateCollar(val, tslaPrice, durationMonths);
+  const maxSpend = totalShares * stockPrice;
+  const collar = calculateCollar(val, stockPrice || 225, durationMonths);
 
   const handleSend = async () => {
     if (val <= 0 || val > maxSpend) return;
@@ -34,6 +38,7 @@ export default function SpendFlow({ prices, onBack, onComplete }: SpendFlowProps
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount: val,
+          symbol,
           durationMonths,
           recipientName: 'Alex Chen',
           userAccountId: 'demo-user',
@@ -45,6 +50,7 @@ export default function SpendFlow({ prices, onBack, onComplete }: SpendFlowProps
       const data = await res.json();
 
       onComplete({
+        symbol,
         amount: val,
         shares: collar.shares,
         recipientName: 'Alex Chen',
@@ -55,6 +61,7 @@ export default function SpendFlow({ prices, onBack, onComplete }: SpendFlowProps
       });
     } catch {
       onComplete({
+        symbol,
         amount: val,
         shares: collar.shares,
         recipientName: 'Alex Chen',
@@ -129,20 +136,20 @@ export default function SpendFlow({ prices, onBack, onComplete }: SpendFlowProps
         <div className="text-center text-[13px]" style={{ color: 'var(--text-tertiary)' }}>
           Available: up to <strong style={{ color: 'var(--text-secondary)' }}>
             ${maxSpend.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-          </strong> from Tesla
+          </strong> from {stockName}
         </div>
       </div>
 
       {/* Paying From */}
       <div className="card flex items-center gap-4 p-4">
         <div className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white"
-          style={{ background: 'linear-gradient(135deg, #E31937, #B91C3A)' }}>T</div>
+          style={{ background: stockGradient }}>{stockIcon}</div>
         <div className="flex-1">
-          <div className="text-[14px] font-semibold">Tesla</div>
+          <div className="text-[14px] font-semibold">{stockName}</div>
           <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Paying from</div>
         </div>
         <div className="text-[15px] font-semibold" style={{ fontVariantNumeric: 'tabular-nums', color: priceLoaded ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
-          {priceLoaded ? `$${tslaPrice.toFixed(2)}` : '···'}
+          {priceLoaded ? `$${stockPrice.toFixed(2)}` : '···'}
         </div>
       </div>
 
@@ -207,7 +214,7 @@ export default function SpendFlow({ prices, onBack, onComplete }: SpendFlowProps
         <div className="flex justify-between py-4 text-[13px]" style={{ borderTop: '1px solid var(--border)' }}>
           <span style={{ color: 'var(--text-tertiary)' }}>Collateral</span>
           <span className="font-medium" style={{ color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-            {formatShares(collar.shares)} TSLA ({formatUsd(collar.collateralValue)})
+            {formatShares(collar.shares)} {symbol} ({formatUsd(collar.collateralValue)})
           </span>
         </div>
 
@@ -232,9 +239,9 @@ export default function SpendFlow({ prices, onBack, onComplete }: SpendFlowProps
           </button>
           {expandHow && (
             <div className="mt-5 pt-5" style={{ borderTop: '1px solid var(--border)' }}>
-              <CollarGraph price={tslaPrice} floor={collar.floor} cap={collar.cap} />
+              <CollarGraph price={stockPrice || 225} floor={collar.floor} cap={collar.cap} />
               <div className="text-[13px] mt-4 leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-                This is a 0% interest loan backed by your Tesla shares. We hold a small portion as collateral
+                This is a 0% interest loan backed by your {stockName} shares. We hold a small portion as collateral
                 and protect it with a zero-cost options collar (the green zone above). The recipient gets paid
                 instantly. Repay anytime before the due date and your shares are released. If you don&apos;t repay,
                 the shares are sold to cover the balance.
