@@ -26,6 +26,7 @@ export interface PriceData {
   change: number;
   changePercent: number;
   lastUpdated: string;
+  source: 'live' | 'cached' | 'fallback';
 }
 
 export interface SpendResult {
@@ -89,8 +90,8 @@ export default function Home() {
       setPrices(data);
     } catch {
       setPrices({
-        TSLA: { symbol: 'TSLA', price: 225, change: 3.45, changePercent: 1.56, lastUpdated: new Date().toISOString() },
-        AAPL: { symbol: 'AAPL', price: 178.5, change: -1.2, changePercent: -0.67, lastUpdated: new Date().toISOString() },
+        TSLA: { symbol: 'TSLA', price: 225, change: 0, changePercent: 0, lastUpdated: '2025-01-01T00:00:00Z', source: 'fallback' },
+        AAPL: { symbol: 'AAPL', price: 178.5, change: 0, changePercent: 0, lastUpdated: '2025-01-01T00:00:00Z', source: 'fallback' },
       });
     }
   }, [holdings]);
