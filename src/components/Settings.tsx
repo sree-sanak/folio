@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
 import type { PlaidStatus } from '@/lib/use-plaid-holdings';
+import { useHederaKey } from '@/lib/use-hedera-key';
 
 interface SettingsProps {
   plaidStatus: PlaidStatus;
@@ -19,6 +20,11 @@ export default function Settings({
 }: SettingsProps) {
   const [mounted, setMounted] = useState(false);
   const { user, handleLogOut } = useDynamicContext();
+  const { hasKey, exportKey, importKey: doImportKey } = useHederaKey();
+  const [showKey, setShowKey] = useState(false);
+  const [importInput, setImportInput] = useState('');
+  const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -182,6 +188,115 @@ export default function Settings({
             Testnet
           </div>
         </div>
+      </div>
+
+      {/* Wallet Key Management */}
+      <div className="card p-6">
+        <div className="text-[11px] font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-tertiary)' }}>
+          Wallet Key
+        </div>
+        {hasKey ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="w-11 h-11 rounded-full flex items-center justify-center"
+                style={{ background: 'rgba(16,185,129,0.1)' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--positive)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              </div>
+              <div>
+                <div className="text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>Key Stored Locally</div>
+                <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                  Your private key is stored in this browser only
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setShowKey(!showKey);
+                if (!showKey) setCopied(false);
+              }}
+              className="w-full py-3 text-[13px] font-semibold rounded-xl transition-colors"
+              style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}
+            >
+              {showKey ? 'Hide Key' : 'Export Key for Backup'}
+            </button>
+            {showKey && (
+              <div className="space-y-2">
+                <div className="p-3 rounded-lg break-all text-[11px] font-mono leading-relaxed"
+                  style={{ background: 'var(--bg-surface)', color: 'var(--text-tertiary)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  {exportKey()}
+                </div>
+                <button
+                  onClick={() => {
+                    const key = exportKey();
+                    if (key) {
+                      navigator.clipboard.writeText(key);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }
+                  }}
+                  className="w-full py-2.5 text-[13px] font-semibold rounded-xl transition-colors"
+                  style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}
+                >
+                  {copied ? 'Copied!' : 'Copy to Clipboard'}
+                </button>
+                <div className="text-[11px] leading-relaxed" style={{ color: 'var(--negative)' }}>
+                  Save this key somewhere safe. If you clear your browser data, you will need it to access your account.
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="w-11 h-11 rounded-full flex items-center justify-center"
+                style={{ background: 'rgba(251,191,36,0.1)' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FBBF24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </div>
+              <div>
+                <div className="text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>No Key Found</div>
+                <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                  Import a previously exported key to restore access
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={importInput}
+                onChange={(e) => { setImportInput(e.target.value); setImportStatus('idle'); }}
+                placeholder="Paste your private key (DER hex)"
+                className="w-full px-3 py-2.5 rounded-xl text-[13px] bg-transparent"
+                style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)' }}
+              />
+              <button
+                onClick={async () => {
+                  try {
+                    await doImportKey(importInput.trim());
+                    setImportStatus('success');
+                    setImportInput('');
+                  } catch {
+                    setImportStatus('error');
+                  }
+                }}
+                disabled={!importInput.trim()}
+                className="w-full py-2.5 text-[13px] font-semibold rounded-xl transition-colors"
+                style={{ background: 'var(--accent-muted)', color: 'var(--accent)', opacity: importInput.trim() ? 1 : 0.5 }}
+              >
+                Import Key
+              </button>
+              {importStatus === 'success' && (
+                <div className="text-[11px]" style={{ color: 'var(--positive)' }}>Key imported successfully</div>
+              )}
+              {importStatus === 'error' && (
+                <div className="text-[11px]" style={{ color: 'var(--negative)' }}>Invalid key format</div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Log Out */}

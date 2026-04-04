@@ -2,6 +2,7 @@ import {
   Client,
   AccountId,
   PrivateKey,
+  PublicKey,
   AccountCreateTransaction,
   TokenCreateTransaction,
   TokenType,
@@ -9,6 +10,7 @@ import {
   TokenAssociateTransaction,
   TokenMintTransaction,
   TransferTransaction,
+  Transaction,
   AccountBalanceQuery,
   TokenId,
   Hbar,
@@ -165,27 +167,6 @@ export async function mintSpendNote(metadata: Uint8Array): Promise<number> {
   const receipt = await response.getReceipt(client);
 
   return receipt.serials[0].toNumber();
-}
-
-// Associate tokens with a user account (requires the account owner's key)
-export async function associateTokens(
-  accountId: string,
-  tokenIds: string[],
-  accountKey?: string
-): Promise<void> {
-  const client = getClient();
-  const signingKey = accountKey
-    ? PrivateKey.fromStringDer(accountKey)
-    : getOperatorKey();
-
-  const tx = new TokenAssociateTransaction()
-    .setAccountId(AccountId.fromString(accountId))
-    .setTokenIds(tokenIds.map((id) => TokenId.fromString(id)))
-    .freezeWith(client);
-
-  const signed = await tx.sign(signingKey);
-  const response = await signed.execute(client);
-  await response.getReceipt(client);
 }
 
 // Transfer fungible tokens (used for escrow lock + USDC advance)
@@ -467,4 +448,80 @@ export async function getTokenBalances(
   }
 
   return result;
+}
+
+// --- Non-custodial helpers ---
+
+// Create account using a client-provided public key (no private key on server)
+export async function createAccountWithPublicKey(
+  publicKeyDer: string
+): Promise<string> {
+  const client = getClient();
+  const publicKey = PublicKey.fromString(publicKeyDer);
+
+  const tx = new AccountCreateTransaction()
+    .setKey(publicKey)
+    .setInitialBalance(new Hbar(5))
+    .freezeWith(client);
+
+  const response = await tx.execute(client);
+  const receipt = await response.getReceipt(client);
+  return receipt.accountId!.toString();
+}
+
+// Prepare an unsigned token association transaction for client-side signing
+export async function prepareTokenAssociation(
+  accountId: string,
+  tokenIds: string[]
+): Promise<Uint8Array> {
+  const client = getClient();
+
+  const tx = new TokenAssociateTransaction()
+    .setAccountId(AccountId.fromString(accountId))
+    .setTokenIds(tokenIds.map((id) => TokenId.fromString(id)))
+    .setTransactionValidDuration(180)
+    .freezeWith(client);
+
+  return tx.toBytes();
+}
+
+// Prepare an unsigned collateral lock transaction for client-side signing
+export async function prepareCollateralLock(
+  stockTokenId: string,
+  userAccountId: string,
+  amount: number
+): Promise<Uint8Array> {
+  const client = getClient();
+  const operatorId = getOperatorId();
+
+  const tx = new TransferTransaction()
+    .addTokenTransfer(
+      TokenId.fromString(stockTokenId),
+      AccountId.fromString(userAccountId),
+      -amount
+    )
+    .addTokenTransfer(
+      TokenId.fromString(stockTokenId),
+      operatorId,
+      amount
+    )
+    .setTransactionValidDuration(180)
+    .freezeWith(client);
+
+  return tx.toBytes();
+}
+
+// Submit a client-signed transaction, adding operator co-signature
+export async function submitSignedTransaction(
+  signedTxBytes: Uint8Array
+): Promise<string> {
+  const client = getClient();
+  const operatorKey = getOperatorKey();
+
+  const tx = Transaction.fromBytes(signedTxBytes);
+  await tx.sign(operatorKey);
+  const response = await tx.execute(client);
+  const receipt = await response.getReceipt(client);
+
+  return response.transactionId.toString();
 }

@@ -16,8 +16,8 @@ export async function POST(req: NextRequest) {
   if (!auth.authenticated) return unauthorized(auth.error);
 
   try {
-    const body = await req.json();
     const {
+      signedCollateralTxBytes,
       amount,
       symbol = 'TSLA',
       durationMonths,  // optional — AI will recommend if not provided
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       portfolioShares,
       riskPreference,
       previousCollars,
-    } = body;
+    } = await req.json();
 
     if (!amount || amount <= 0) {
       return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
@@ -62,17 +62,22 @@ export async function POST(req: NextRequest) {
 
     const stockTokenId = getTokenIdForSymbol(symbol);
     if (hederaConfigured && stockTokenId) {
-      const { transferToken, mintSpendNoteWithIpfs, transferNft, getOperatorId, submitAuditMessage } = await import('@/lib/hedera');
+      const { submitSignedTransaction, transferToken, mintSpendNoteWithIpfs, transferNft, getOperatorId, submitAuditMessage } = await import('@/lib/hedera');
       const operatorId = getOperatorId().toString();
       const usdcTokenId = process.env.USDC_TEST_TOKEN_ID!;
       const noteTokenId = process.env.SPEND_NOTE_TOKEN_ID!;
 
-      // Lock sender's collateral: sender → operator
-      txId = await transferToken(stockTokenId, userAccountId, operatorId, collar.sharesHts);
-      // Transfer USDC advance to recipient (P2P) or back to sender (card)
+      // Submit client-signed collateral lock (server adds operator co-signature)
+      if (signedCollateralTxBytes) {
+        const bytes = Uint8Array.from(Buffer.from(signedCollateralTxBytes, 'base64'));
+        txId = await submitSignedTransaction(bytes);
+      }
+
+      // Transfer USDC advance (operator-only, no user signature needed)
       const advanceTarget = recipientAccountId || userAccountId;
       await transferToken(usdcTokenId, operatorId, advanceTarget, collar.advanceHts);
 
+      // Mint spend note NFT and transfer to user (operator-only)
       const now = new Date().toISOString();
       const { serial } = await mintSpendNoteWithIpfs({
         name: `Spend Note #${Date.now()}`,
@@ -135,8 +140,6 @@ export async function POST(req: NextRequest) {
         cardExpYear = result.card.expYear;
         cardToken = result.card.token;
         cardLastFour = result.card.lastFour;
-      } else {
-        console.error('Lithic card issuance failed after collar:', result.error);
       }
     }
 
@@ -192,12 +195,9 @@ export async function POST(req: NextRequest) {
       } : undefined,
     });
   } catch (error) {
-    console.error('Spend error:', error);
+    console.error('Spend execute error:', error);
     return NextResponse.json(
-      {
-        error: 'Spend transaction failed',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
+      { error: 'Spend transaction failed', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
