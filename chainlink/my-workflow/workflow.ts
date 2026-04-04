@@ -20,6 +20,7 @@
 import {
 	cre,
 	getNetwork,
+	Report,
 	type CronPayload,
 	type Runtime,
 	type HTTPSendRequester,
@@ -28,7 +29,9 @@ import {
 	bytesToHex,
 	ok,
 } from '@chainlink/cre-sdk'
-import { type Address, encodeFunctionData, decodeAbiParameters, parseAbi } from 'viem'
+import { encodeFunctionData, decodeAbiParameters, parseAbi, hexToBytes } from 'viem'
+import { SDK_PB } from '@chainlink/cre-sdk/pb'
+import { create } from '@bufbuild/protobuf'
 import { z } from 'zod'
 
 // ---------------------------------------------------------------------------
@@ -296,12 +299,24 @@ function writeCollarParams(
 
 	runtime.log(`[CollarOracle] Writing ${symbols.length} collars: ${symbols.join(', ')}`)
 
-	// Encode the calldata for updateCollars
+	// Encode the calldata for updateCollars as the raw report payload
 	const callData = encodeFunctionData({
 		abi: COLLAR_ORACLE_ABI,
 		functionName: 'updateCollars',
 		args: [symbols, priceValues, volValues],
 	})
+
+	// Build the DON consensus report containing our collar data
+	// In production the DON injects this automatically; for simulation
+	// we construct it so the fake EVM chain has a non-nil report to process
+	const reportMsg = create(SDK_PB.ReportResponseSchema, {
+		configDigest: new Uint8Array(32),
+		seqNr: 1n,
+		reportContext: new Uint8Array(32),
+		rawReport: hexToBytes(callData),
+		sigs: [],
+	})
+	const report = new Report(reportMsg)
 
 	// Write via CRE report pattern — the DON reaches consensus and submits
 	// through the CRE forwarder contract to the CollarOracle receiver
@@ -310,6 +325,7 @@ function writeCollarParams(
 	const resp = evmClient
 		.writeReport(runtime, {
 			receiver: receiverAddress,
+			report,
 			gasConfig: {
 				gasLimit: runtime.config.gasLimit,
 			},
