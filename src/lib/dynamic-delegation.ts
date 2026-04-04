@@ -21,7 +21,7 @@ export function getDelegatedClient() {
 
   cachedClient = createDelegatedEvmWalletClient({
     environmentId: process.env.DYNAMIC_ENVIRONMENT_ID!,
-    apiKey: process.env.DYNAMIC_API_TOKEN!,
+    apiKey: (process.env.DYNAMIC_AUTH_TOKEN || process.env.DYNAMIC_API_TOKEN || process.env.DYNAMIC_API_KEY)!,
   });
 
   return cachedClient;

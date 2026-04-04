@@ -13,7 +13,7 @@ const hederaConfigured = !!(
 
 const dynamicServerConfigured = !!(
   process.env.DYNAMIC_ENVIRONMENT_ID &&
-  process.env.DYNAMIC_API_TOKEN &&
+  (process.env.DYNAMIC_AUTH_TOKEN || process.env.DYNAMIC_API_TOKEN || process.env.DYNAMIC_API_KEY) &&
   process.env.DYNAMIC_SERVER_WALLET_ID
 );
 
