@@ -4,6 +4,7 @@ module.exports = {
   testEnvironment: 'node',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^jose$': '<rootDir>/src/lib/__mocks__/jose.ts',
   },
   transform: {
     '^.+\\.tsx?$': ['ts-jest', { tsconfig: { module: 'CommonJS' } }],

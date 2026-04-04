@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { PriceData, SpendResult } from '@/app/page';
 import type { Holding } from '@/lib/types';
 import { calculateCollar, formatShares, formatUsd, formatDate } from '@/lib/collar';
+import { authFetch } from '@/lib/use-auth-fetch';
 import CollarGraph from '@/components/CollarGraph';
 import { useHederaKey } from '@/lib/use-hedera-key';
 
@@ -60,7 +61,7 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
     setVerifyStatus('checking');
     verifyTimeout.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/users/search?q=${encodeURIComponent(input)}`);
+        const res = await authFetch(`/api/users/search?q=${encodeURIComponent(input)}`);
         const data = await res.json();
         const users: { email: string; name: string; hederaAccountId: string }[] = data.users || [];
 
@@ -114,7 +115,7 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
     try {
       // Step 1: Prepare — server builds unsigned collateral lock transaction
       setSendStatus('preparing');
-      const prepRes = await fetch('/api/spend/prepare', {
+      const prepRes = await authFetch('/api/spend/prepare', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -141,7 +142,7 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
 
       // Step 3: Execute — server co-signs, submits, and does the rest
       setSendStatus('submitting');
-      const execRes = await fetch('/api/spend/execute', {
+      const execRes = await authFetch('/api/spend/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

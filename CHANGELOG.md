@@ -2,6 +2,12 @@
 
 All notable changes to Folio will be documented in this file.
 
+## [0.2.1.1] - 2026-04-04
+
+### Fixed
+- New accounts not showing $500 USDC balance due to race condition in registration hook
+- Dynamic SDK `user` object reference changes were cancelling in-flight registration responses
+
 ## [0.2.1.0] - 2026-04-04
 
 ### Changed

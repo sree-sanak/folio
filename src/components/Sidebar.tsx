@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
+import FolioLogo from './FolioLogo';
 
 interface SidebarProps {
   activeTab: string;
@@ -69,8 +70,7 @@ export default function Sidebar({ activeTab, onNavigate }: SidebarProps) {
       style={{ background: 'var(--bg-surface)', borderColor: 'var(--border)' }}>
       {/* Logo */}
       <div className="flex items-center gap-3 mb-10 px-3">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold"
-          style={{ background: 'var(--accent)', color: '#000', boxShadow: '0 2px 8px rgba(16,185,129,0.3)' }}>F</div>
+        <FolioLogo size={36} />
         <span className="text-[17px] font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>Folio</span>
       </div>
 

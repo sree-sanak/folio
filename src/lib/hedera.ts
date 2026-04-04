@@ -14,6 +14,15 @@ import {
   AccountBalanceQuery,
   TokenId,
   Hbar,
+  TopicCreateTransaction,
+  TopicMessageSubmitTransaction,
+  TopicId,
+  CustomFixedFee,
+  CustomFractionalFee,
+  TokenGrantKycTransaction,
+  TokenRevokeKycTransaction,
+  TokenFreezeTransaction,
+  TokenUnfreezeTransaction,
 } from '@hashgraph/sdk';
 
 // Module-level singleton (persists across warm serverless invocations)
@@ -214,6 +223,208 @@ export async function transferNft(
   await response.getReceipt(client);
 
   return response.transactionId.toString();
+}
+
+// Create a new Hedera account (for new app users)
+export async function createAccount(): Promise<{ accountId: string; privateKey: string }> {
+  const client = getClient();
+  const newKey = PrivateKey.generateED25519();
+
+  const tx = new AccountCreateTransaction()
+    .setKey(newKey.publicKey)
+    .setInitialBalance(new Hbar(5)) // Fund with 5 HBAR for testnet tx fees
+    .freezeWith(client);
+
+  const response = await tx.execute(client);
+  const receipt = await response.getReceipt(client);
+  const accountId = receipt.accountId!.toString();
+
+  return { accountId, privateKey: newKey.toStringDer() };
+}
+
+// ── Hedera Consensus Service (HCS) — Audit Trail ─────────────────────
+
+// Create a topic for audit logging (run once during setup)
+export async function createAuditTopic(memo: string = 'Folio Spend Note Audit Trail'): Promise<string> {
+  const client = getClient();
+  const operatorKey = getOperatorKey();
+
+  const tx = new TopicCreateTransaction()
+    .setAdminKey(operatorKey.publicKey)
+    .setSubmitKey(operatorKey.publicKey)
+    .setTopicMemo(memo)
+    .freezeWith(client);
+
+  const signed = await tx.sign(operatorKey);
+  const response = await signed.execute(client);
+  const receipt = await response.getReceipt(client);
+
+  return receipt.topicId!.toString();
+}
+
+// Submit an audit message to HCS topic
+export async function submitAuditMessage(
+  topicId: string,
+  message: Record<string, unknown>
+): Promise<{ sequenceNumber: number; transactionId: string }> {
+  const client = getClient();
+  const operatorKey = getOperatorKey();
+
+  const tx = new TopicMessageSubmitTransaction()
+    .setTopicId(TopicId.fromString(topicId))
+    .setMessage(JSON.stringify(message))
+    .freezeWith(client);
+
+  const signed = await tx.sign(operatorKey);
+  const response = await signed.execute(client);
+  const receipt = await response.getReceipt(client);
+
+  return {
+    sequenceNumber: receipt.topicSequenceNumber?.toNumber() ?? 0,
+    transactionId: response.transactionId.toString(),
+  };
+}
+
+// ── Custom Fee Schedules ──────────────────���──────────────────────────
+
+// Create a fungible token with custom fee schedule (platform spread)
+export async function createFungibleTokenWithFees(
+  name: string,
+  symbol: string,
+  initialSupply: number,
+  decimals: number = 6,
+  fractionalFeeNumerator: number = 5,   // 0.5% = 5/1000
+  fractionalFeeDenominator: number = 1000,
+): Promise<string> {
+  const client = getClient();
+  const operatorKey = getOperatorKey();
+  const operatorId = getOperatorId();
+
+  const fee = new CustomFractionalFee()
+    .setNumerator(fractionalFeeNumerator)
+    .setDenominator(fractionalFeeDenominator)
+    .setFeeCollectorAccountId(operatorId);
+
+  const tx = new TokenCreateTransaction()
+    .setTokenName(name)
+    .setTokenSymbol(symbol)
+    .setTokenType(TokenType.FungibleCommon)
+    .setDecimals(decimals)
+    .setInitialSupply(initialSupply)
+    .setTreasuryAccountId(operatorId)
+    .setSupplyType(TokenSupplyType.Infinite)
+    .setSupplyKey(operatorKey.publicKey)
+    .setAdminKey(operatorKey.publicKey)
+    .setCustomFees([fee])
+    .freezeWith(client);
+
+  const signed = await tx.sign(operatorKey);
+  const response = await signed.execute(client);
+  const receipt = await response.getReceipt(client);
+
+  return receipt.tokenId!.toString();
+}
+
+// Create a stock token with KYC + freeze controls and optional royalty
+export async function createStockTokenWithCompliance(
+  name: string,
+  symbol: string,
+  initialSupply: number,
+  decimals: number = 6,
+  fixedFeeAmount: number = 0, // fixed fee per transfer in tinybars
+): Promise<string> {
+  const client = getClient();
+  const operatorKey = getOperatorKey();
+  const operatorId = getOperatorId();
+
+  const fees = [];
+  if (fixedFeeAmount > 0) {
+    fees.push(
+      new CustomFixedFee()
+        .setAmount(fixedFeeAmount)
+        .setFeeCollectorAccountId(operatorId)
+    );
+  }
+
+  const tx = new TokenCreateTransaction()
+    .setTokenName(name)
+    .setTokenSymbol(symbol)
+    .setTokenType(TokenType.FungibleCommon)
+    .setDecimals(decimals)
+    .setInitialSupply(initialSupply)
+    .setTreasuryAccountId(operatorId)
+    .setSupplyType(TokenSupplyType.Infinite)
+    .setSupplyKey(operatorKey.publicKey)
+    .setAdminKey(operatorKey.publicKey)
+    .setKycKey(operatorKey.publicKey)      // KYC gating
+    .setFreezeKey(operatorKey.publicKey)    // Freeze capability
+    .setFreezeDefault(true)                // Frozen by default — must grant KYC
+    .setCustomFees(fees)
+    .freezeWith(client);
+
+  const signed = await tx.sign(operatorKey);
+  const response = await signed.execute(client);
+  const receipt = await response.getReceipt(client);
+
+  return receipt.tokenId!.toString();
+}
+
+// ── KYC / Compliance Controls ────────────────────────────────────────
+
+export async function grantKyc(tokenId: string, accountId: string): Promise<void> {
+  const client = getClient();
+  const operatorKey = getOperatorKey();
+
+  const tx = new TokenGrantKycTransaction()
+    .setTokenId(TokenId.fromString(tokenId))
+    .setAccountId(AccountId.fromString(accountId))
+    .freezeWith(client);
+
+  const signed = await tx.sign(operatorKey);
+  const response = await signed.execute(client);
+  await response.getReceipt(client);
+}
+
+export async function revokeKyc(tokenId: string, accountId: string): Promise<void> {
+  const client = getClient();
+  const operatorKey = getOperatorKey();
+
+  const tx = new TokenRevokeKycTransaction()
+    .setTokenId(TokenId.fromString(tokenId))
+    .setAccountId(AccountId.fromString(accountId))
+    .freezeWith(client);
+
+  const signed = await tx.sign(operatorKey);
+  const response = await signed.execute(client);
+  await response.getReceipt(client);
+}
+
+export async function freezeAccount(tokenId: string, accountId: string): Promise<void> {
+  const client = getClient();
+  const operatorKey = getOperatorKey();
+
+  const tx = new TokenFreezeTransaction()
+    .setTokenId(TokenId.fromString(tokenId))
+    .setAccountId(AccountId.fromString(accountId))
+    .freezeWith(client);
+
+  const signed = await tx.sign(operatorKey);
+  const response = await signed.execute(client);
+  await response.getReceipt(client);
+}
+
+export async function unfreezeAccount(tokenId: string, accountId: string): Promise<void> {
+  const client = getClient();
+  const operatorKey = getOperatorKey();
+
+  const tx = new TokenUnfreezeTransaction()
+    .setTokenId(TokenId.fromString(tokenId))
+    .setAccountId(AccountId.fromString(accountId))
+    .freezeWith(client);
+
+  const signed = await tx.sign(operatorKey);
+  const response = await signed.execute(client);
+  await response.getReceipt(client);
 }
 
 // Get token balances for an account

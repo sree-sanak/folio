@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
+import { authFetch } from '@/lib/use-auth-fetch';
 import { useHederaKey } from './use-hedera-key';
 
 export interface FolioUser {
@@ -14,18 +15,99 @@ export interface FolioUser {
 type RegistrationStatus =
   | 'idle'
   | 'generating-key'
+  | 'needs-passphrase'
   | 'creating-account'
   | 'signing-association'
   | 'completing'
+  | 'encrypting-key'
+  | 'recovering-key'
   | 'done'
   | 'error';
 
 export function useUserRegistration() {
   const { user } = useDynamicContext();
-  const { hasKey, publicKeyDer, generateKey, signTransaction } = useHederaKey();
+  const { hasKey, publicKeyDer, generateKey, signTransaction, encryptAndStore, recoverKey } = useHederaKey();
   const [folioUser, setFolioUser] = useState<FolioUser | null>(null);
   const [status, setStatus] = useState<RegistrationStatus>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [needsPassphrase, setNeedsPassphrase] = useState(false);
+  const [needsRecovery, setNeedsRecovery] = useState(false);
+  const [isNewUser, setIsNewUser] = useState(false);
+
+  // Called by UI when user submits passphrase for new registration
+  const submitPassphrase = useCallback(async (passphrase: string) => {
+    if (!user?.email) return;
+    setNeedsPassphrase(false);
+
+    try {
+      // Generate keypair
+      setStatus('generating-key');
+      const pubKey = await generateKey();
+
+      // Register with server
+      setStatus('creating-account');
+      const res = await authFetch('/api/users/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: user.email,
+          name: user.firstName || '',
+          publicKey: pubKey,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.details || err.error || 'Registration failed');
+      }
+
+      const data = await res.json();
+
+      // Sign token association if needed
+      if (data.needsTokenAssociation) {
+        setStatus('signing-association');
+        const signedTxBytes = await signTransaction(data.tokenAssocTxBytes);
+
+        setStatus('completing');
+        const completeRes = await authFetch('/api/users/register/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: user.email, signedTxBytes }),
+        });
+
+        if (!completeRes.ok) {
+          const err = await completeRes.json().catch(() => ({}));
+          throw new Error(err.details || err.error || 'Token association failed');
+        }
+      }
+
+      // Encrypt key and store in Supabase
+      setStatus('encrypting-key');
+      await encryptAndStore(user.email, passphrase);
+
+      setFolioUser(data.user);
+      setStatus('done');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Registration failed');
+      setStatus('error');
+    }
+  }, [user, generateKey, signTransaction, encryptAndStore]);
+
+  // Called by UI when user submits passphrase for key recovery
+  const submitRecoveryPassphrase = useCallback(async (passphrase: string) => {
+    if (!user?.email) return;
+    setNeedsRecovery(false);
+
+    try {
+      setStatus('recovering-key');
+      await recoverKey(user.email, passphrase);
+      setStatus('idle');
+    } catch {
+      setError('Wrong passphrase. Please try again.');
+      setNeedsRecovery(true);
+      setStatus('error');
+    }
+  }, [user, recoverKey]);
 
   useEffect(() => {
     if (!user?.email) return;
@@ -34,68 +116,71 @@ export function useUserRegistration() {
 
     async function register() {
       try {
-        // Step 1: Ensure we have a keypair
+        // If we already have a key locally, try normal registration
         let pubKey = publicKeyDer;
-        if (!hasKey || !pubKey) {
-          setStatus('generating-key');
-          pubKey = await generateKey();
-        }
+        if (hasKey && pubKey) {
+          setStatus('creating-account');
+          const res = await authFetch('/api/users/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: user!.email,
+              name: user!.firstName || '',
+              publicKey: pubKey,
+            }),
+          });
 
-        if (cancelled) return;
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.details || err.error || 'Registration failed');
+          }
 
-        // Step 2: Register with server (sends public key, gets unsigned token assoc tx)
-        setStatus('creating-account');
-        const res = await fetch('/api/users/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: user!.email,
-            name: user!.firstName || '',
-            publicKey: pubKey,
-          }),
-        });
+          const data = await res.json();
+          if (cancelled) return;
 
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.details || err.error || 'Registration failed');
-        }
+          if (!data.needsTokenAssociation) {
+            setFolioUser(data.user);
+            setStatus('done');
+            return;
+          }
 
-        const data = await res.json();
-        if (cancelled) return;
+          setStatus('signing-association');
+          const signedTxBytes = await signTransaction(data.tokenAssocTxBytes);
+          if (cancelled) return;
 
-        // If user already existed, we're done
-        if (!data.needsTokenAssociation) {
+          setStatus('completing');
+          const completeRes = await authFetch('/api/users/register/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: user!.email, signedTxBytes }),
+          });
+
+          if (!completeRes.ok) {
+            const err = await completeRes.json().catch(() => ({}));
+            throw new Error(err.details || err.error || 'Token association failed');
+          }
+
+          if (cancelled) return;
           setFolioUser(data.user);
           setStatus('done');
           return;
         }
 
-        // Step 3: Sign the token association transaction client-side
-        setStatus('signing-association');
-        const signedTxBytes = await signTransaction(data.tokenAssocTxBytes);
-
+        // No local key — check if user exists with an encrypted key backup
+        const keyRes = await fetch(`/api/users/key?email=${encodeURIComponent(user!.email)}`);
+        const keyData = await keyRes.json().catch(() => ({}));
         if (cancelled) return;
 
-        // Step 4: Submit signed transaction to server
-        setStatus('completing');
-        const completeRes = await fetch('/api/users/register/complete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: user!.email,
-            signedTxBytes,
-          }),
-        });
-
-        if (!completeRes.ok) {
-          const err = await completeRes.json().catch(() => ({}));
-          throw new Error(err.details || err.error || 'Token association failed');
+        if (keyData.hasEncryptedKey) {
+          setNeedsRecovery(true);
+          setStatus('needs-passphrase');
+          return;
         }
 
-        if (cancelled) return;
-
-        setFolioUser(data.user);
-        setStatus('done');
+        // New user — needs passphrase to encrypt key
+        setIsNewUser(true);
+        setNeedsPassphrase(true);
+        setStatus('needs-passphrase');
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Registration failed');
@@ -106,12 +191,18 @@ export function useUserRegistration() {
 
     register();
     return () => { cancelled = true; };
-  }, [user, hasKey, publicKeyDer, generateKey, signTransaction]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.email]);
 
   return {
     folioUser,
-    registering: status !== 'idle' && status !== 'done' && status !== 'error',
+    registering: status !== 'idle' && status !== 'done' && status !== 'error' && status !== 'needs-passphrase',
     status,
     error,
+    needsPassphrase,
+    needsRecovery,
+    isNewUser,
+    submitPassphrase,
+    submitRecoveryPassphrase,
   };
 }

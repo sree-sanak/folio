@@ -65,7 +65,7 @@ export function DynamicProvider({ children }: { children: React.ReactNode }) {
         environmentId: process.env.NEXT_PUBLIC_DYNAMIC_ENV_ID ?? 'placeholder',
         walletConnectors: [],
         appName: 'Folio',
-        appLogoUrl: '',
+        appLogoUrl: '/logo.svg',
         overrides: {
           views: [
             {

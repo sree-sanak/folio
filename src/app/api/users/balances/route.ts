@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTokenRegistry } from '@/lib/token-registry';
 import { SYMBOL_GRADIENTS, DEFAULT_GRADIENT } from '@/lib/types';
+import { verifyAuth, unauthorized } from '@/lib/auth';
 
 const hederaConfigured = !!(
   process.env.HEDERA_OPERATOR_ID &&
@@ -8,6 +9,9 @@ const hederaConfigured = !!(
 );
 
 export async function GET(req: NextRequest) {
+  const auth = await verifyAuth(req);
+  if (!auth.authenticated) return unauthorized(auth.error);
+
   const accountId = req.nextUrl.searchParams.get('accountId');
 
   if (!accountId) {

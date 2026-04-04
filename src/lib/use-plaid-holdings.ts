@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { usePlaidLink } from 'react-plaid-link';
+import { authFetch } from '@/lib/use-auth-fetch';
 import type { Holding } from './types';
 import { DEMO_HOLDINGS, holdingGradient } from './types';
 
@@ -49,7 +50,7 @@ export function usePlaidHoldings(): PlaidHookResult {
 
       // Try loading previously-connected brokerage holdings (token persists on disk)
       try {
-        const brokerageRes = await fetch('/api/plaid/holdings?userId=demo-user');
+        const brokerageRes = await authFetch('/api/plaid/holdings?userId=demo-user');
         if (brokerageRes.ok && !cancelled) {
           const brokerageData = await brokerageRes.json();
           if (brokerageData.holdings?.length > 0) {
@@ -74,7 +75,7 @@ export function usePlaidHoldings(): PlaidHookResult {
 
       // Then check Plaid availability for new connections
       try {
-        const res = await fetch('/api/plaid/create-link-token', {
+        const res = await authFetch('/api/plaid/create-link-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: 'demo-user' }),
@@ -109,7 +110,7 @@ export function usePlaidHoldings(): PlaidHookResult {
   // Fetch brokerage holdings and merge with existing HTS tokenized holdings
   const fetchHoldings = useCallback(async () => {
     try {
-      const res = await fetch('/api/plaid/holdings?userId=demo-user');
+      const res = await authFetch('/api/plaid/holdings?userId=demo-user');
       if (!res.ok) throw new Error('Failed to fetch holdings');
       const data = await res.json();
 
@@ -152,7 +153,7 @@ export function usePlaidHoldings(): PlaidHookResult {
   const onSuccess = useCallback(async (publicToken: string) => {
     setStatus('loading');
     try {
-      const res = await fetch('/api/plaid/exchange-token', {
+      const res = await authFetch('/api/plaid/exchange-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ public_token: publicToken, userId: 'demo-user' }),

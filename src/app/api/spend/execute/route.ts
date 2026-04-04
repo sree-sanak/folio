@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { calculateCollar } from '@/lib/collar';
 import { getStockPrice } from '@/lib/price';
 import { addNote } from '@/lib/store';
 import { issueVirtualCard } from '@/lib/lithic';
 import { getTokenIdForSymbol } from '@/lib/token-registry';
+import { verifyAuth, unauthorized } from '@/lib/auth';
+import { optimizeCollar, calculateOptimizedCollar } from '@/lib/ai-collar-optimizer';
 
 const hederaConfigured = !!(
   process.env.HEDERA_OPERATOR_ID &&
@@ -11,29 +12,57 @@ const hederaConfigured = !!(
 );
 
 export async function POST(req: NextRequest) {
+  const auth = await verifyAuth(req);
+  if (!auth.authenticated) return unauthorized(auth.error);
+
   try {
     const {
       signedCollateralTxBytes,
       amount,
       symbol = 'TSLA',
-      durationMonths = 1,
+      durationMonths,  // optional — AI will recommend if not provided
+      issueCard = false,
       recipientAccountId,
       userAccountId,
-      issueCard = false,
+      portfolioShares,
+      riskPreference,
+      previousCollars,
     } = await req.json();
 
     if (!amount || amount <= 0) {
       return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
     }
 
+    if (!userAccountId) {
+      return NextResponse.json({ error: 'userAccountId required' }, { status: 400 });
+    }
+
+    // Fetch stock price
     const priceData = await getStockPrice(symbol);
-    const collar = calculateCollar(amount, priceData.price, durationMonths);
+
+    // AI-optimized collar parameters
+    const recommendation = await optimizeCollar({
+      symbol,
+      stockPrice: priceData.price,
+      changePercent: priceData.changePercent,
+      spendAmount: amount,
+      portfolioShares,
+      userRiskPreference: riskPreference,
+      previousCollars,
+    });
+
+    // If user explicitly set duration, override AI recommendation
+    if (durationMonths) {
+      recommendation.durationMonths = durationMonths;
+    }
+
+    const collar = calculateOptimizedCollar(amount, priceData.price, recommendation);
 
     let txId = 'demo-tx-' + Date.now();
 
     const stockTokenId = getTokenIdForSymbol(symbol);
     if (hederaConfigured && stockTokenId) {
-      const { submitSignedTransaction, transferToken, mintSpendNoteWithIpfs, transferNft, getOperatorId } = await import('@/lib/hedera');
+      const { submitSignedTransaction, transferToken, mintSpendNoteWithIpfs, transferNft, getOperatorId, submitAuditMessage } = await import('@/lib/hedera');
       const operatorId = getOperatorId().toString();
       const usdcTokenId = process.env.USDC_TEST_TOKEN_ID!;
       const noteTokenId = process.env.SPEND_NOTE_TOKEN_ID!;
@@ -64,6 +93,33 @@ export async function POST(req: NextRequest) {
         status: 'active',
       });
       await transferNft(noteTokenId, serial, operatorId, userAccountId);
+
+      // Log to HCS audit trail (non-blocking)
+      const auditTopicId = process.env.AUDIT_TOPIC_ID;
+      if (auditTopicId) {
+        submitAuditMessage(auditTopicId, {
+          type: 'SPEND_NOTE_CREATED',
+          serial,
+          txId,
+          symbol,
+          amount,
+          collar: {
+            floorPct: collar.floorPct,
+            capPct: collar.capPct,
+            floor: collar.floor,
+            cap: collar.cap,
+            durationMonths: collar.durationMonths,
+          },
+          ai: {
+            confidence: recommendation.confidence,
+            riskLevel: recommendation.riskLevel,
+            reasoning: recommendation.reasoning,
+          },
+          userAccountId,
+          recipientAccountId: advanceTarget,
+          timestamp: now,
+        }).catch((e: unknown) => console.error('HCS audit log failed:', e));
+      }
     }
 
     // Issue virtual card via Lithic
@@ -98,7 +154,7 @@ export async function POST(req: NextRequest) {
       stockPrice: priceData.price,
       floor: collar.floor,
       cap: collar.cap,
-      durationMonths,
+      durationMonths: collar.durationMonths,
       expiryDate: collar.expiryDate.toISOString(),
       status: 'active',
       txId,
@@ -119,6 +175,14 @@ export async function POST(req: NextRequest) {
         advance: collar.advance,
         fee: collar.fee,
         expiryDate: collar.expiryDate.toISOString(),
+        floorPct: collar.floorPct,
+        capPct: collar.capPct,
+      },
+      ai: {
+        confidence: recommendation.confidence,
+        riskLevel: recommendation.riskLevel,
+        reasoning: recommendation.reasoning,
+        warnings: recommendation.warnings,
       },
       txId,
       card: cardPan ? {

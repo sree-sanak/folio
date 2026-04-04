@@ -15,6 +15,7 @@ import Settings from '@/components/Settings';
 import { AuthGuard } from '@/components/auth/auth-guard';
 import { usePlaidHoldings } from '@/lib/use-plaid-holdings';
 import { useUserRegistration } from '@/lib/use-user-registration';
+import { authFetch } from '@/lib/use-auth-fetch';
 import type { Holding } from '@/lib/types';
 
 export type Screen = 'portfolio' | 'stock-detail' | 'spend' | 'confirm' | 'card-result' | 'cards' | 'notes' | 'note-detail' | 'settings';
@@ -25,6 +26,7 @@ export interface PriceData {
   change: number;
   changePercent: number;
   lastUpdated: string;
+  source: 'live' | 'cached' | 'fallback';
 }
 
 export interface SpendResult {
@@ -88,8 +90,8 @@ export default function Home() {
       setPrices(data);
     } catch {
       setPrices({
-        TSLA: { symbol: 'TSLA', price: 225, change: 3.45, changePercent: 1.56, lastUpdated: new Date().toISOString() },
-        AAPL: { symbol: 'AAPL', price: 178.5, change: -1.2, changePercent: -0.67, lastUpdated: new Date().toISOString() },
+        TSLA: { symbol: 'TSLA', price: 225, change: 0, changePercent: 0, lastUpdated: '2025-01-01T00:00:00Z', source: 'fallback' },
+        AAPL: { symbol: 'AAPL', price: 178.5, change: 0, changePercent: 0, lastUpdated: '2025-01-01T00:00:00Z', source: 'fallback' },
       });
     }
   }, [holdings]);
@@ -107,7 +109,7 @@ export default function Home() {
 
     async function fetchCryptoBalances() {
       try {
-        const res = await fetch(`/api/users/balances?accountId=${folioUser!.hederaAccountId}`);
+        const res = await authFetch(`/api/users/balances?accountId=${folioUser!.hederaAccountId}`);
         if (res.ok && !cancelled) {
           const data = await res.json();
           setCryptoHoldings(data.holdings || []);

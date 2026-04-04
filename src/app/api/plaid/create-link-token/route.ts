@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { plaidClient, isPlaidConfigured } from '@/lib/plaid';
 import { Products, CountryCode } from 'plaid';
+import { verifyAuth, unauthorized } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
+  const auth = await verifyAuth(req);
+  if (!auth.authenticated) return unauthorized(auth.error);
+
   if (!isPlaidConfigured) {
     return NextResponse.json(
       { error: 'plaid_not_configured' },
@@ -12,7 +16,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const userId = body.userId || 'demo-user';
+    const userId = auth.email;
 
     const response = await plaidClient.linkTokenCreate({
       user: { client_user_id: userId },

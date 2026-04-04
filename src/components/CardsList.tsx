@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { formatUsd } from '@/lib/collar';
+import { authFetch } from '@/lib/use-auth-fetch';
 
 interface CardNote {
   id: number;
@@ -23,7 +24,7 @@ export default function CardsList({ onGetCard }: CardsListProps) {
   useEffect(() => {
     const fetchCards = async () => {
       try {
-        const res = await fetch('/api/notes');
+        const res = await authFetch('/api/notes');
         const data = await res.json();
         // Filter to notes that have a card associated
         const cardNotes = (data.notes ?? []).filter((n: CardNote) => n.cardLastFour);

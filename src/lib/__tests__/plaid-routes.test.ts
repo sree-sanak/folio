@@ -11,15 +11,23 @@ jest.mock('../plaid', () => ({
   hasAccessToken: jest.fn(),
 }));
 
+// Create a fake JWT with email claim for auth tests
+const fakeJwt = 'header.' + Buffer.from(JSON.stringify({ email: 'test@example.com', sub: 'test-user' })).toString('base64') + '.signature';
+
 // Helper to create mock NextRequest
-function mockRequest(options: { method?: string; body?: object; searchParams?: Record<string, string> } = {}) {
+function mockRequest(options: { method?: string; body?: object; searchParams?: Record<string, string>; authenticated?: boolean } = {}) {
   const url = new URL('http://localhost:3000/api/test');
   if (options.searchParams) {
     Object.entries(options.searchParams).forEach(([k, v]) => url.searchParams.set(k, v));
   }
+  const headers = new Map<string, string>();
+  if (options.authenticated !== false) {
+    headers.set('authorization', `Bearer ${fakeJwt}`);
+  }
   return {
     json: jest.fn().mockResolvedValue(options.body || {}),
     nextUrl: url,
+    headers: { get: (key: string) => headers.get(key.toLowerCase()) ?? null },
   } as unknown as import('next/server').NextRequest;
 }
 
@@ -127,7 +135,7 @@ describe('POST /api/plaid/exchange-token', () => {
 
     expect(res.status).toBe(200);
     expect(data.success).toBe(true);
-    expect(mockSet).toHaveBeenCalledWith('user-1', 'access-sandbox-xyz');
+    expect(mockSet).toHaveBeenCalledWith('test@example.com', 'access-sandbox-xyz');
   });
 
   it('returns 400 when missing public_token', async () => {

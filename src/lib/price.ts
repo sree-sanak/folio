@@ -6,23 +6,26 @@ interface PriceData {
   change: number;
   changePercent: number;
   lastUpdated: string;
+  source: 'live' | 'cached' | 'fallback';
 }
 
-// Hardcoded fallback prices (updated at build time)
+// Hardcoded fallback prices — stale, only used when Yahoo is unreachable
 const FALLBACK_PRICES: Record<string, PriceData> = {
   TSLA: {
     symbol: 'TSLA',
     price: 225.0,
-    change: 3.45,
-    changePercent: 1.56,
-    lastUpdated: new Date().toISOString(),
+    change: 0,
+    changePercent: 0,
+    lastUpdated: '2025-01-01T00:00:00Z',
+    source: 'fallback',
   },
   AAPL: {
     symbol: 'AAPL',
     price: 178.5,
-    change: -1.2,
-    changePercent: -0.67,
-    lastUpdated: new Date().toISOString(),
+    change: 0,
+    changePercent: 0,
+    lastUpdated: '2025-01-01T00:00:00Z',
+    source: 'fallback',
   },
 };
 
@@ -36,7 +39,7 @@ export async function getStockPrice(symbol: string): Promise<PriceData> {
 
   // Return cached if fresh
   if (priceCache[symbol] && now - lastFetch < CACHE_TTL) {
-    return priceCache[symbol];
+    return { ...priceCache[symbol], source: 'cached' };
   }
 
   try {
@@ -55,16 +58,18 @@ export async function getStockPrice(symbol: string): Promise<PriceData> {
       change: quote.regularMarketChange ?? 0,
       changePercent: quote.regularMarketChangePercent ?? 0,
       lastUpdated: new Date().toISOString(),
+      source: 'live',
     };
 
     priceCache[symbol] = data;
     lastFetch = now;
     return data;
-  } catch {
-    // Fallback to hardcoded or cached
-    if (priceCache[symbol]) return priceCache[symbol];
-    if (FALLBACK_PRICES[symbol]) return FALLBACK_PRICES[symbol];
-    throw new Error(`No price available for ${symbol}`);
+  } catch (error) {
+    console.error(`[price] Yahoo Finance failed for ${symbol}:`, error instanceof Error ? error.message : error);
+    // Fallback to cached (stale) or hardcoded
+    if (priceCache[symbol]) return { ...priceCache[symbol], source: 'cached' };
+    console.warn(`[price] Using hardcoded fallback for ${symbol} — prices are NOT live`);
+    return FALLBACK_PRICES[symbol] ?? { symbol, price: 0, change: 0, changePercent: 0, lastUpdated: '2025-01-01T00:00:00Z', source: 'fallback' };
   }
 }
 

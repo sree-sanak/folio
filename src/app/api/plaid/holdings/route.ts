@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { plaidClient, isPlaidConfigured, getAccessToken } from '@/lib/plaid';
 import { holdingGradient } from '@/lib/types';
+import { verifyAuth, unauthorized } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
+  const auth = await verifyAuth(req);
+  if (!auth.authenticated) return unauthorized(auth.error);
+
   if (!isPlaidConfigured) {
     return NextResponse.json(
       { error: 'plaid_not_configured' },

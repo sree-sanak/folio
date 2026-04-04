@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { plaidClient, isPlaidConfigured, setAccessToken } from '@/lib/plaid';
+import { verifyAuth, unauthorized } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
+  const auth = await verifyAuth(req);
+  if (!auth.authenticated) return unauthorized(auth.error);
+
   if (!isPlaidConfigured) {
     return NextResponse.json(
       { error: 'plaid_not_configured' },
@@ -11,7 +15,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { public_token, userId = 'demo-user' } = body;
+    const { public_token } = body;
+    const userId = auth.email;
 
     if (!public_token) {
       return NextResponse.json(
