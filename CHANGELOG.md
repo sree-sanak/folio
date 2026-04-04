@@ -2,6 +2,27 @@
 
 All notable changes to Folio will be documented in this file.
 
+## [0.2.3.0] - 2026-04-04
+
+### Added
+- Reusable prepaid Visa cards via Lithic (upgraded from single-use to UNLOCKED type)
+- Card detail page with full card visual, collar protection range, and card info
+- Card freeze/unfreeze functionality with Lithic API integration and visual feedback
+- Spending limit update support via Lithic PATCH endpoint
+- Card freeze API route (`/api/cards/freeze`) with ownership verification
+- Single note API route (`/api/notes/[id]`) for card detail data
+- Cards list separates active vs past cards with richer mini-card visuals
+- Frozen card overlay badge and dimmed visual state
+- Tap-to-reveal PAN on card result screen (masked by default)
+- 4 new Lithic tests: freeze, unfreeze, spend limit update, card retrieval
+
+### Changed
+- Card visuals now use DESIGN.md color tokens instead of hardcoded navy gradients
+- "Virtual Card" label updated to "Prepaid Card" across all card surfaces
+- CardResult primary action changed from "View All Cards" to "View Card Details"
+- Card list items are now tappable, navigating to new card detail page
+- Lithic mock mode persists cards in memory for freeze/unfreeze testing
+
 ## [0.2.2.0] - 2026-04-04
 
 ### Added

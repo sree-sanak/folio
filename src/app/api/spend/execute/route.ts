@@ -174,6 +174,9 @@ export async function POST(req: NextRequest) {
     let cardToken: string | undefined;
     let cardLastFour: string | undefined;
 
+    let cardState: string | undefined;
+    let cardSpendLimit: number | undefined;
+
     if (issueCard) {
       const amountCents = Math.round(amount * 100);
       const result = await issueVirtualCard(amountCents);
@@ -184,6 +187,8 @@ export async function POST(req: NextRequest) {
         cardExpYear = result.card.expYear;
         cardToken = result.card.token;
         cardLastFour = result.card.lastFour;
+        cardState = result.card.state;
+        cardSpendLimit = result.card.spendLimit;
       }
     }
 
@@ -207,6 +212,8 @@ export async function POST(req: NextRequest) {
       recipientAccountId: recipientAccountId || undefined,
       cardToken,
       cardLastFour,
+      cardState: (cardState as 'OPEN' | 'PAUSED' | 'CLOSED') || undefined,
+      cardSpendLimit,
     });
 
     return NextResponse.json({

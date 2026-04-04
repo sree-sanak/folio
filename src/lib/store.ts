@@ -23,6 +23,8 @@ export interface SpendNote {
   // Virtual card fields
   cardToken?: string;
   cardLastFour?: string;
+  cardState?: 'OPEN' | 'PAUSED' | 'CLOSED';
+  cardSpendLimit?: number; // in cents
 }
 
 const notes: SpendNote[] = [];
