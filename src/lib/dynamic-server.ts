@@ -13,7 +13,7 @@ export async function getDynamicEvmClient(): Promise<DynamicEvmWalletClient> {
   if (clientInstance && clientAuthenticated) return clientInstance;
 
   const environmentId = process.env.DYNAMIC_ENVIRONMENT_ID!;
-  const authToken = process.env.DYNAMIC_API_TOKEN!;
+  const authToken = (process.env.DYNAMIC_AUTH_TOKEN || process.env.DYNAMIC_API_TOKEN || process.env.DYNAMIC_API_KEY)!;
 
   if (!environmentId || !authToken) {
     throw new Error(

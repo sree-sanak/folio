@@ -24,7 +24,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true });
+    // Mint fUSDC to the user's embedded wallet on Base Sepolia (demo funding)
+    let mintTxHash: string | undefined;
+    const mockUsdcAddress = process.env.MOCK_USDC_BASE_ADDRESS;
+    const serverWalletId = process.env.DYNAMIC_SERVER_WALLET_ID;
+    if (mockUsdcAddress && serverWalletId) {
+      try {
+        const { serverWalletSignTransaction } = await import('@/lib/dynamic-server');
+        const { encodeFunctionData } = await import('viem');
+        // Mint 1,000 fUSDC to the new user's embedded wallet
+        const mintData = encodeFunctionData({
+          abi: [{ name: 'mint', type: 'function', inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [] }],
+          functionName: 'mint',
+          args: [evmAddress as `0x${string}`, BigInt(25_000_000)], // 25 USDC (6 decimals)
+        });
+        mintTxHash = await serverWalletSignTransaction(serverWalletId, {
+          to: mockUsdcAddress,
+          value: '0',
+          data: mintData,
+          chainId: 84532, // Base Sepolia
+        });
+      } catch (mintErr) {
+        // Non-blocking — user can still use the app without Base USDC
+        console.error('fUSDC mint to user failed (non-blocking):', mintErr);
+      }
+    }
+
+    return NextResponse.json({ success: true, mintTxHash });
   } catch (error) {
     console.error('Store EVM wallet error:', error);
     return NextResponse.json(

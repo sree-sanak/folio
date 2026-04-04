@@ -13,7 +13,7 @@ const hederaConfigured = !!(
 
 const dynamicServerConfigured = !!(
   process.env.DYNAMIC_ENVIRONMENT_ID &&
-  process.env.DYNAMIC_API_TOKEN &&
+  (process.env.DYNAMIC_AUTH_TOKEN || process.env.DYNAMIC_API_TOKEN || process.env.DYNAMIC_API_KEY) &&
   process.env.DYNAMIC_SERVER_WALLET_ID
 );
 
@@ -139,31 +139,65 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // EVM settlement via Dynamic server wallet (cross-chain USDC disbursement)
-    let evmTxHash: string | undefined;
-    let evmWalletAddress: string | undefined;
+    // Oracle maintenance via Dynamic server wallet (pre-funded on Base Sepolia)
+    // Sends a small USDC fee to fund Chainlink oracle gas costs.
+    // If oracle data is stale, also pushes a fresh update to CollarOracle.
+    let oracleFeeTxHash: string | undefined;
+    let oracleUpdateTxHash: string | undefined;
 
     if (dynamicServerConfigured) {
       try {
-        const { getUser } = await import('@/lib/user-registry');
-        const userRecord = await getUser(auth.email);
-        if (userRecord?.evmWalletAddress) {
-          evmWalletAddress = userRecord.evmWalletAddress;
-          const { serverWalletSignTransaction } = await import('@/lib/dynamic-server');
-          // Sign EVM USDC transfer from platform treasury to user's embedded wallet
-          evmTxHash = await serverWalletSignTransaction(
-            process.env.DYNAMIC_SERVER_WALLET_ID!,
-            {
-              to: userRecord.evmWalletAddress,
-              value: '0',
-              data: '0x', // In production: encode ERC-20 transfer call
-              chainId: 84532, // Base Sepolia
-            }
-          );
+        const { serverWalletSignTransaction } = await import('@/lib/dynamic-server');
+        const { encodeFunctionData } = await import('viem');
+        const { getChainlinkCollar } = await import('@/lib/chainlink');
+        const serverWalletId = process.env.DYNAMIC_SERVER_WALLET_ID!;
+
+        // Folio MockUSDC (fUSDC) on Base Sepolia — deployed via DeployMockUSDC.s.sol
+        const USDC_BASE_SEPOLIA = (process.env.MOCK_USDC_BASE_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e') as `0x${string}`;
+        const COLLAR_ORACLE = (process.env.COLLAR_ORACLE_ADDRESS || '0x00A3cF51bA20eA6f1754BaFcecA6d144e3d1D00f') as `0x${string}`;
+        const ORACLE_FEE_RECIPIENT = COLLAR_ORACLE; // fees accrue to the oracle contract address
+
+        // 1. Send oracle maintenance fee (0.10 USDC per spend — covers gas for oracle updates)
+        const oracleFeeUsdc = BigInt(100_000); // 0.10 USDC (6 decimals)
+        const feeData = encodeFunctionData({
+          abi: [{ name: 'transfer', type: 'function', inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ name: '', type: 'bool' }] }],
+          functionName: 'transfer',
+          args: [ORACLE_FEE_RECIPIENT, oracleFeeUsdc],
+        });
+        oracleFeeTxHash = await serverWalletSignTransaction(serverWalletId, {
+          to: USDC_BASE_SEPOLIA,
+          value: '0',
+          data: feeData,
+          chainId: 84532,
+        });
+
+        // 2. If oracle data is stale (>1 hour), push a fresh update from the server wallet
+        //    This is a fallback — the CRE workflow is the primary update path via DON consensus
+        const existingCollar = await getChainlinkCollar(symbol);
+        const isStale = !existingCollar || (Date.now() - existingCollar.updatedAt.getTime()) > 3600_000;
+
+        if (isStale) {
+          const updateData = encodeFunctionData({
+            abi: [{ name: 'updateCollars', type: 'function', inputs: [{ name: 'symbols', type: 'string[]' }, { name: 'prices', type: 'uint256[]' }, { name: 'floors', type: 'uint256[]' }, { name: 'caps', type: 'uint256[]' }, { name: 'volatilities', type: 'uint256[]' }], outputs: [] }],
+            functionName: 'updateCollars',
+            args: [
+              [symbol],
+              [BigInt(Math.round(priceData.price * 1e8))],
+              [BigInt(Math.round(collar.floor * 1e8))],
+              [BigInt(Math.round(collar.cap * 1e8))],
+              [BigInt(Math.round(recommendation.confidence * 10000))], // confidence as volatility proxy in bps
+            ],
+          });
+          oracleUpdateTxHash = await serverWalletSignTransaction(serverWalletId, {
+            to: COLLAR_ORACLE,
+            value: '0',
+            data: updateData,
+            chainId: 84532,
+          });
         }
       } catch (evmErr) {
-        // EVM settlement is non-blocking — Hedera collateral is the primary flow
-        console.error('EVM settlement failed (non-blocking):', evmErr);
+        // Oracle maintenance is non-blocking — Hedera collateral is the primary flow
+        console.error('Oracle maintenance failed (non-blocking):', evmErr);
       }
     }
 
@@ -245,9 +279,10 @@ export async function POST(req: NextRequest) {
         lastFour: cardLastFour,
         token: cardToken,
       } : undefined,
-      evm: evmTxHash ? {
-        txHash: evmTxHash,
-        walletAddress: evmWalletAddress,
+      oracle: (oracleFeeTxHash || oracleUpdateTxHash) ? {
+        feeTxHash: oracleFeeTxHash,
+        updateTxHash: oracleUpdateTxHash,
+        feeUsdc: 0.10,
         chain: 'Base Sepolia',
         chainId: 84532,
       } : undefined,
