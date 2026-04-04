@@ -30,7 +30,9 @@
     "yahoo-finance2": "^3.14.0"
   },
   "overrides": {
-    "axios": "^1.14.0"
+    "axios": "^1.14.0",
+    "@metamask/sdk": "0.33.1",
+    "@metamask/sdk-communication-layer": "0.33.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
