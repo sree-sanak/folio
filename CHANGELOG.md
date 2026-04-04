@@ -2,6 +2,22 @@
 
 All notable changes to Folio will be documented in this file.
 
+## [0.2.6.0] - 2026-04-04
+
+### Added
+- Emerald AI bubble that watches your positions and suggests when to settle advances
+- Outstanding Advance card on Portfolio screen showing most urgent active note
+- Bottom sheet settle flow with one-tap repayment from the AI bubble
+- Contextual suggestion logic: near-expiry, near-cap, stock-up, and default variants
+- Active notes state management in page.tsx with automatic refresh after spend/settle
+- 17 new tests covering AI bubble visibility, suggestions, settle flow, and Portfolio advance card
+
+### Changed
+- Notes API routes now user-scoped via auth email lookup (previously accepted any userAccountId)
+- Price fetch includes collateral symbols from active notes for accurate AI suggestions
+- NoteDetail catch block no longer falsely marks note as repaid on API failure
+- Portfolio "Available to Spend" card shrinks to single line when an advance is active
+
 ## [0.2.5.0] - 2026-04-04
 
 ### Added
