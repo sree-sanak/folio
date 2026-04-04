@@ -30,6 +30,13 @@ All notable changes to Folio will be documented in this file.
 - Removed dead `onViewNote` prop from CardResult component
 - Updated escrow and AiBubble tests for signed-transaction and two-step repay patterns
 
+## [0.2.6.1] - 2026-04-05
+
+### Added
+- HCS audit trail API test suite covering auth, message decode, error handling, and missing topic
+- Escrow audit failure resilience tests proving HCS outages don't break transactions
+- Mirror node `decodeHcsMessage` round-trip tests for valid, malformed, and non-JSON payloads
+
 ## [0.2.6.0] - 2026-04-04
 
 ### Added

@@ -65,7 +65,7 @@ describe('escrow executor', () => {
   });
 
   describe('executeRepayment', () => {
-    it('submits signed repayment and returns all collateral', async () => {
+    it('returns all collateral shares to user and logs audit', async () => {
       mockGetNote.mockResolvedValue({ ...activeNote });
 
       const fakeSignedTx = Buffer.from('fake-signed-tx').toString('base64');
@@ -78,10 +78,13 @@ describe('escrow executor', () => {
       expect(mockSubmitSignedTransaction).toHaveBeenCalledWith(
         expect.any(Uint8Array),
       );
-      // Shares from operator to user
+      // Shares from operator back to user (only transferToken call, USDC
+      // repayment is now user-signed via signedRepayTxBytes, not server-side)
       expect(mockTransferToken).toHaveBeenCalledWith(
         '0.0.100', '0.0.6256036', '0.0.99999', 500_000,
       );
+      expect(mockTransferToken).toHaveBeenCalledTimes(1);
+
       // Supabase update
       expect(mockSettleNote).toHaveBeenCalledWith(1, expect.objectContaining({
         status: 'repaid',
