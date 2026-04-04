@@ -10,6 +10,8 @@ import {
   importKey,
   validateImportedKey,
   clearKeypair,
+  encryptPrivateKey,
+  decryptPrivateKey,
 } from './hedera-keystore';
 
 export function useHederaKey() {
@@ -39,6 +41,43 @@ export function useHederaKey() {
     return btoa(binary);
   }, []);
 
+  // Encrypt the current local key and store in Supabase
+  const encryptAndStore = useCallback(async (email: string, passphrase: string) => {
+    const privateKeyDer = exportKey();
+    if (!privateKeyDer) throw new Error('No key to encrypt');
+
+    const { encryptedKey, salt, iv } = await encryptPrivateKey(privateKeyDer, passphrase);
+
+    const res = await fetch('/api/users/key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, encryptedKey, keySalt: salt, keyIv: iv }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to store encrypted key');
+    }
+  }, []);
+
+  // Recover key from Supabase encrypted backup
+  const recoverKey = useCallback(async (email: string, passphrase: string) => {
+    const res = await fetch(`/api/users/key?email=${encodeURIComponent(email)}`);
+    const data = await res.json();
+
+    if (!data.hasEncryptedKey) throw new Error('No encrypted key backup found');
+
+    const privateKeyDer = await decryptPrivateKey(
+      data.encryptedKey, data.keySalt, data.keyIv, passphrase
+    );
+
+    importKey(privateKeyDer);
+    const pub = await validateImportedKey();
+    setHasKey(true);
+    setPublicKeyDer(pub);
+    return pub;
+  }, []);
+
   const doExportKey = useCallback(() => exportKey(), []);
 
   const doImportKey = useCallback(async (der: string) => {
@@ -60,6 +99,8 @@ export function useHederaKey() {
     publicKeyDer,
     generateKey,
     signTransaction,
+    encryptAndStore,
+    recoverKey,
     exportKey: doExportKey,
     importKey: doImportKey,
     clearKey: doClearKey,

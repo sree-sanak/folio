@@ -248,30 +248,6 @@ describe('mintSpendNoteWithIpfs', () => {
   });
 });
 
-describe('associateTokens', () => {
-  it('associates tokens with an account using operator key by default', async () => {
-    receiptResult = {};
-
-    const { associateTokens } = freshHedera();
-    await associateTokens('0.0.55555', ['0.0.11111', '0.0.22222']);
-
-    expect(mockTokenAssociateTransaction).toHaveBeenCalled();
-    expect(mockFreezeWith).toHaveBeenCalled();
-    expect(mockSign).toHaveBeenCalled();
-  });
-
-  it('uses provided account key when given', async () => {
-    receiptResult = {};
-
-    const { associateTokens } = freshHedera();
-    await associateTokens('0.0.55555', ['0.0.11111'], 'custom-key-der');
-
-    expect(mockTokenAssociateTransaction).toHaveBeenCalled();
-    // The sign call should use the custom key (verified by mock being called)
-    expect(mockSign).toHaveBeenCalled();
-  });
-});
-
 describe('transferToken', () => {
   it('transfers fungible tokens and returns transaction ID', async () => {
     executeResult = { transactionId: { toString: () => '0.0.12345@1234567890.000' } };

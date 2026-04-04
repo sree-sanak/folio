@@ -60,7 +60,18 @@ export default function Home() {
   const [spendMode, setSpendMode] = useState<SpendMode>('send');
 
   const { status: plaidStatus, holdings, openLink, isPlaidAvailable, isDemo } = usePlaidHoldings();
-  const { folioUser } = useUserRegistration(); // Auto-creates Hedera account on first login
+  const {
+    folioUser,
+    needsPassphrase,
+    needsRecovery,
+    isNewUser,
+    submitPassphrase,
+    submitRecoveryPassphrase,
+    registering,
+    status: regStatus,
+    error: regError,
+  } = useUserRegistration();
+  const [passphraseInput, setPassphraseInput] = useState('');
   const [cryptoHoldings, setCryptoHoldings] = useState<Holding[]>([]);
 
   const navMap: Record<Screen, string> = {
@@ -142,6 +153,84 @@ export default function Home() {
     setSelectedNoteId(noteId);
     setScreen('note-detail');
   };
+
+  // Passphrase prompt for new users or key recovery
+  if (needsPassphrase || needsRecovery) {
+    return (
+      <AuthGuard>
+        <div className="min-h-screen flex items-center justify-center main-gradient px-6">
+          <div className="w-full max-w-[380px] space-y-6">
+            <div className="card p-8 space-y-6">
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
+                  style={{ background: 'var(--accent-muted)' }}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                </div>
+                <div className="text-[20px] font-bold" style={{ color: 'var(--text-primary)' }}>
+                  {isNewUser ? 'Create Passphrase' : 'Enter Passphrase'}
+                </div>
+                <div className="text-[13px] mt-2 leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+                  {isNewUser
+                    ? 'This passphrase encrypts your wallet key. You\'ll need it to log in on a new device.'
+                    : 'Enter the passphrase you created during registration to unlock your wallet.'}
+                </div>
+              </div>
+
+              <input
+                type="password"
+                value={passphraseInput}
+                onChange={(e) => setPassphraseInput(e.target.value)}
+                placeholder={isNewUser ? 'Choose a passphrase (6+ characters)' : 'Enter your passphrase'}
+                className="w-full px-4 py-3.5 rounded-xl text-[15px] bg-transparent"
+                style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)' }}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && passphraseInput.length >= 6) {
+                    if (needsRecovery) submitRecoveryPassphrase(passphraseInput);
+                    else submitPassphrase(passphraseInput);
+                    setPassphraseInput('');
+                  }
+                }}
+              />
+
+              {regError && (
+                <div className="text-[13px] text-center" style={{ color: 'var(--negative)' }}>
+                  {regError}
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  if (needsRecovery) submitRecoveryPassphrase(passphraseInput);
+                  else submitPassphrase(passphraseInput);
+                  setPassphraseInput('');
+                }}
+                disabled={passphraseInput.length < 6 || registering}
+                className="btn-primary w-full py-4 text-[15px]"
+              >
+                {registering
+                  ? (regStatus === 'generating-key' ? 'Generating key...'
+                    : regStatus === 'creating-account' ? 'Creating account...'
+                    : regStatus === 'signing-association' ? 'Signing...'
+                    : regStatus === 'encrypting-key' ? 'Encrypting...'
+                    : regStatus === 'recovering-key' ? 'Decrypting...'
+                    : 'Setting up...')
+                  : (isNewUser ? 'Create Wallet' : 'Unlock Wallet')}
+              </button>
+
+              {isNewUser && (
+                <div className="text-[11px] text-center leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+                  Your private key is encrypted with this passphrase and backed up securely. The server never sees your key.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </AuthGuard>
+    );
+  }
 
   return (
     <AuthGuard>

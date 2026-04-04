@@ -7,6 +7,17 @@
  * Tests localStorage key management and transaction signing helpers
  */
 
+// Polyfill Web Crypto and TextEncoder for jsdom
+import { webcrypto } from 'crypto';
+import { TextEncoder as NodeTextEncoder, TextDecoder as NodeTextDecoder } from 'util';
+if (!globalThis.crypto?.subtle) {
+  Object.defineProperty(globalThis, 'crypto', { value: webcrypto, writable: true });
+}
+if (typeof globalThis.TextEncoder === 'undefined') {
+  Object.defineProperty(globalThis, 'TextEncoder', { value: NodeTextEncoder });
+  Object.defineProperty(globalThis, 'TextDecoder', { value: NodeTextDecoder });
+}
+
 // Mock localStorage
 const store: Record<string, string> = {};
 const localStorageMock = {
@@ -54,6 +65,8 @@ import {
   importKey,
   validateImportedKey,
   clearKeypair,
+  encryptPrivateKey,
+  decryptPrivateKey,
 } from '../hedera-keystore';
 
 describe('hedera-keystore', () => {
@@ -145,6 +158,60 @@ describe('hedera-keystore', () => {
       clearKeypair();
       expect(localStorageMock.getItem('folio:hedera:privateKey')).toBeNull();
       expect(localStorageMock.getItem('folio:hedera:publicKey')).toBeNull();
+    });
+  });
+
+  describe('encryptPrivateKey / decryptPrivateKey', () => {
+    it('encrypts and decrypts a key with a passphrase', async () => {
+      const originalKey = '302e020100300506032b6570042204200000000000000000000000000000000000000000000000000000000000000001';
+      const passphrase = 'test-passphrase-123';
+
+      const { encryptedKey, salt, iv } = await encryptPrivateKey(originalKey, passphrase);
+
+      // Encrypted output should be base64 strings
+      expect(typeof encryptedKey).toBe('string');
+      expect(typeof salt).toBe('string');
+      expect(typeof iv).toBe('string');
+      expect(encryptedKey).not.toBe(originalKey);
+
+      // Decrypt should recover the original key
+      const decrypted = await decryptPrivateKey(encryptedKey, salt, iv, passphrase);
+      expect(decrypted).toBe(originalKey);
+    });
+
+    it('fails to decrypt with wrong passphrase', async () => {
+      const originalKey = 'test-private-key-der';
+      const { encryptedKey, salt, iv } = await encryptPrivateKey(originalKey, 'correct-passphrase');
+
+      await expect(
+        decryptPrivateKey(encryptedKey, salt, iv, 'wrong-passphrase')
+      ).rejects.toThrow();
+    });
+
+    it('produces different ciphertext for same key with different passphrases', async () => {
+      const key = 'same-private-key';
+      const result1 = await encryptPrivateKey(key, 'passphrase-1');
+      const result2 = await encryptPrivateKey(key, 'passphrase-2');
+
+      // Different passphrases should produce different encrypted output
+      expect(result1.encryptedKey).not.toBe(result2.encryptedKey);
+    });
+
+    it('produces different ciphertext for same key and passphrase (random salt/iv)', async () => {
+      const key = 'same-private-key';
+      const passphrase = 'same-passphrase';
+      const result1 = await encryptPrivateKey(key, passphrase);
+      const result2 = await encryptPrivateKey(key, passphrase);
+
+      // Random salt means different output each time
+      expect(result1.salt).not.toBe(result2.salt);
+      expect(result1.iv).not.toBe(result2.iv);
+
+      // But both should decrypt to the same key
+      const dec1 = await decryptPrivateKey(result1.encryptedKey, result1.salt, result1.iv, passphrase);
+      const dec2 = await decryptPrivateKey(result2.encryptedKey, result2.salt, result2.iv, passphrase);
+      expect(dec1).toBe(key);
+      expect(dec2).toBe(key);
     });
   });
 });
