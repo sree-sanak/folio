@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
 
     if (hederaConfigured) {
       // Real Hedera flow
-      const { transferToken, mintSpendNote, transferNft, getOperatorId } = await import('@/lib/hedera');
+      const { transferToken, mintSpendNoteWithIpfs, transferNft, getOperatorId } = await import('@/lib/hedera');
       const operatorId = getOperatorId().toString();
       const tslaTokenId = process.env.MOCK_TSLA_TOKEN_ID!;
       const usdcTokenId = process.env.USDC_TEST_TOKEN_ID!;
@@ -39,21 +39,20 @@ export async function POST(req: NextRequest) {
       txId = await transferToken(tslaTokenId, userAccountId, operatorId, collar.sharesHts);
       await transferToken(usdcTokenId, operatorId, userAccountId, collar.advanceHts);
 
-      const metadata = JSON.stringify({
+      const now = new Date().toISOString();
+      const { serial } = await mintSpendNoteWithIpfs({
         name: `Spend Note #${Date.now()}`,
         asset: 'MOCK-TSLA',
         shares_collared: collar.sharesHts,
-        stock_price: Math.floor(priceData.price * 1e6),
+        stock_price_at_spend: Math.floor(priceData.price * 1e6),
         collar_floor: Math.floor(collar.floor * 1e6),
         collar_cap: Math.floor(collar.cap * 1e6),
         advance_usdc: collar.advanceHts,
-        fee: 0,
-        duration_months: durationMonths,
+        platform_spread: 0,
+        created_at: now,
         expires_at: collar.expiryDate.toISOString(),
         status: 'active',
       });
-
-      const serial = await mintSpendNote(new TextEncoder().encode(metadata));
       await transferNft(noteTokenId, serial, operatorId, userAccountId);
     }
 

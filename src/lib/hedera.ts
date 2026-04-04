@@ -98,6 +98,47 @@ export async function createNftCollection(
   return receipt.tokenId!.toString();
 }
 
+export interface SpendNoteMetadata {
+  name: string;
+  asset: string;
+  shares_collared: number;        // integer decimal 6
+  stock_price_at_spend: number;   // integer decimal 6
+  collar_floor: number;           // integer decimal 6
+  collar_cap: number;             // integer decimal 6
+  advance_usdc: number;           // integer decimal 6
+  platform_spread: number;        // integer decimal 6
+  created_at: string;             // ISO string
+  expires_at: string;             // ISO string
+  status: string;                 // 'active'
+}
+
+export async function mintSpendNoteWithIpfs(
+  metadata: SpendNoteMetadata
+): Promise<{ serial: number; cid: string }> {
+  let cid: string;
+
+  if (!process.env.PINATA_API_KEY) {
+    cid = 'demo-cid';
+  } else {
+    const response = await fetch('https://api.pinata.cloud/pinning/pinJSONToIPFS', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.PINATA_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        pinataContent: metadata,
+        pinataMetadata: { name: metadata.name },
+      }),
+    });
+    const data = await response.json();
+    cid = data.IpfsHash;
+  }
+
+  const serial = await mintSpendNote(new TextEncoder().encode(`ipfs://${cid}`));
+  return { serial, cid };
+}
+
 // Mint a Spend Note NFT with metadata
 export async function mintSpendNote(metadata: Uint8Array): Promise<number> {
   const client = getClient();
