@@ -55,9 +55,9 @@ export function usePlaidHoldings(): PlaidHookResult {
         setHoldings(DEMO_HOLDINGS);
       }
 
-      // Try loading previously-connected brokerage holdings (token persists on disk)
+      // Try loading previously-connected brokerage holdings (token persists in DB)
       try {
-        const brokerageRes = await authFetch('/api/plaid/holdings?userId=demo-user');
+        const brokerageRes = await authFetch('/api/plaid/holdings');
         if (brokerageRes.ok && !cancelled) {
           const brokerageData = await brokerageRes.json();
           if (brokerageData.holdings?.length > 0) {
@@ -84,8 +84,6 @@ export function usePlaidHoldings(): PlaidHookResult {
       try {
         const res = await authFetch('/api/plaid/create-link-token', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: 'demo-user' }),
         });
 
         if (!res.ok) {
@@ -117,7 +115,7 @@ export function usePlaidHoldings(): PlaidHookResult {
   // Fetch brokerage holdings and merge with existing HTS tokenized holdings
   const fetchHoldings = useCallback(async () => {
     try {
-      const res = await authFetch('/api/plaid/holdings?userId=demo-user');
+      const res = await authFetch('/api/plaid/holdings');
       if (!res.ok) throw new Error('Failed to fetch holdings');
       const data = await res.json();
 
@@ -163,7 +161,7 @@ export function usePlaidHoldings(): PlaidHookResult {
       const res = await authFetch('/api/plaid/exchange-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ public_token: publicToken, userId: 'demo-user' }),
+        body: JSON.stringify({ public_token: publicToken }),
       });
 
       if (!res.ok) throw new Error('Token exchange failed');

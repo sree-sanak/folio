@@ -5,6 +5,8 @@ All notable changes to Folio will be documented in this file.
 ## [0.2.3.0] - 2026-04-04
 
 ### Added
+- Supabase migration for `plaid_tokens` table with RLS enabled, enabling persistent Plaid token storage across deploys
+- Test assertion verifying holdings endpoint resolves user from JWT auth
 - Reusable prepaid Visa cards via Lithic (upgraded from single-use to UNLOCKED type)
 - Card detail page with full card visual, collar protection range, and card info
 - Card freeze/unfreeze functionality with Lithic API integration and visual feedback
@@ -15,6 +17,10 @@ All notable changes to Folio will be documented in this file.
 - Frozen card overlay badge and dimmed visual state
 - Tap-to-reveal PAN on card result screen (masked by default)
 - 4 new Lithic tests: freeze, unfreeze, spend limit update, card retrieval
+
+### Fixed
+- Plaid holdings endpoint now uses authenticated user email instead of trusting client-supplied userId query parameter
+- Frontend Plaid hook no longer sends hardcoded 'demo-user' to API routes
 
 ### Changed
 - Card visuals now use DESIGN.md color tokens instead of hardcoded navy gradients
