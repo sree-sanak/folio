@@ -37,11 +37,18 @@ export async function GET(req: NextRequest) {
       if (usdcBalance < 100) {
         try {
           const fundAmount = 500_000_000; // 500 USDC (6 decimals)
-          await transferToken(usdcId, operatorId, accountId, fundAmount);
-          // Re-fetch balances after funding
-          const updated = await getTokenBalances(accountId);
-          balances.clear();
-          updated.forEach((v, k) => balances.set(k, v));
+          // Check treasury has enough before auto-funding
+          const treasuryBalances = await getTokenBalances(operatorId);
+          const treasuryUsdc = treasuryBalances.get(usdcId) ?? 0;
+          if (treasuryUsdc < fundAmount) {
+            console.warn(`Auto-fund skipped: treasury USDC balance (${treasuryUsdc}) < fund amount (${fundAmount})`);
+          } else {
+            await transferToken(usdcId, operatorId, accountId, fundAmount);
+            // Re-fetch balances after funding
+            const updated = await getTokenBalances(accountId);
+            balances.clear();
+            updated.forEach((v, k) => balances.set(k, v));
+          }
         } catch (e) {
           console.error('Auto-fund USDC failed:', e);
         }

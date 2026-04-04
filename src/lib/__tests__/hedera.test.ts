@@ -13,7 +13,7 @@ let receiptResult: unknown;
 
 const mockGetReceipt = jest.fn(() => Promise.resolve(receiptResult));
 const mockExecute = jest.fn(() =>
-  Promise.resolve({ getReceipt: mockGetReceipt, ...executeResult })
+  Promise.resolve({ getReceipt: mockGetReceipt, ...(executeResult as object) })
 );
 const mockSign = jest.fn(() => ({ execute: mockExecute }));
 
@@ -26,13 +26,14 @@ const mockFreezeWith = jest.fn(() => ({ sign: mockSign, execute: mockExecute }))
 function chainable() {
   const obj: Record<string, unknown> = {};
   const handler: ProxyHandler<Record<string, unknown>> = {
-    get(_target, prop) {
+    get(_target, prop: string | symbol) {
       if (prop === 'freezeWith') return mockFreezeWith;
       if (prop === 'execute') return mockExecute;
-      if (typeof prop === 'string' && !obj[prop]) {
-        obj[prop] = jest.fn(() => new Proxy({}, handler));
+      const key = String(prop);
+      if (!obj[key]) {
+        obj[key] = jest.fn(() => new Proxy({}, handler));
       }
-      return obj[prop];
+      return obj[key];
     },
   };
   return new Proxy(obj, handler);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser, registerUser } from '@/lib/user-registry';
 import { getTokenIdForSymbol } from '@/lib/token-registry';
+import { verifyAuth, unauthorized } from '@/lib/auth';
 
 const hederaConfigured = !!(
   process.env.HEDERA_OPERATOR_ID &&
@@ -8,6 +9,9 @@ const hederaConfigured = !!(
 );
 
 export async function POST(req: NextRequest) {
+  const auth = await verifyAuth(req);
+  if (!auth.authenticated) return unauthorized(auth.error);
+
   try {
     const { email, name, publicKey } = await req.json();
 

@@ -29,6 +29,8 @@ export interface SpendNote {
   recipientAccountId?: string;
   cardToken?: string;
   cardLastFour?: string;
+  cardState?: 'OPEN' | 'PAUSED' | 'CLOSED';
+  cardSpendLimit?: number;
 }
 
 interface NoteRow {
@@ -56,6 +58,8 @@ interface NoteRow {
   recipient_account_id: string | null;
   card_token: string | null;
   card_last_four: string | null;
+  card_state: string | null;
+  card_spend_limit: number | null;
 }
 
 function rowToNote(row: NoteRow): SpendNote {
@@ -84,6 +88,8 @@ function rowToNote(row: NoteRow): SpendNote {
     recipientAccountId: row.recipient_account_id ?? undefined,
     cardToken: row.card_token ?? undefined,
     cardLastFour: row.card_last_four ?? undefined,
+    cardState: (row.card_state as SpendNote['cardState']) ?? undefined,
+    cardSpendLimit: row.card_spend_limit != null ? Number(row.card_spend_limit) : undefined,
   };
 }
 
@@ -112,6 +118,8 @@ export async function addNote(
       recipient_account_id: note.recipientAccountId ?? null,
       card_token: note.cardToken ?? null,
       card_last_four: note.cardLastFour ?? null,
+      card_state: note.cardState ?? null,
+      card_spend_limit: note.cardSpendLimit ?? null,
     })
     .select()
     .single();

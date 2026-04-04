@@ -23,7 +23,9 @@ CREATE TABLE spend_notes (
   user_account_id TEXT NOT NULL,
   recipient_account_id TEXT,
   card_token      TEXT,
-  card_last_four  TEXT
+  card_last_four  TEXT,
+  card_state      TEXT,
+  card_spend_limit NUMERIC(18,6)
 );
 
 CREATE INDEX idx_spend_notes_status_expiry ON spend_notes(expiry_date) WHERE status = 'active';

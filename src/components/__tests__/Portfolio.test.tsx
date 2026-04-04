@@ -12,8 +12,8 @@ const mockHoldings: Holding[] = [
 ];
 
 const mockPrices = {
-  AAPL: { symbol: 'AAPL', price: 180, change: 2, changePercent: 1.1, lastUpdated: '' },
-  NFLX: { symbol: 'NFLX', price: 600, change: -5, changePercent: -0.8, lastUpdated: '' },
+  AAPL: { symbol: 'AAPL', price: 180, change: 2, changePercent: 1.1, lastUpdated: '', source: 'live' as const },
+  NFLX: { symbol: 'NFLX', price: 600, change: -5, changePercent: -0.8, lastUpdated: '', source: 'live' as const },
 };
 
 const defaultProps = {

@@ -68,10 +68,20 @@ export async function POST(req: NextRequest) {
 
     const stockTokenId = getTokenIdForSymbol(symbol);
     if (hederaConfigured && stockTokenId) {
-      const { submitSignedTransaction, transferToken, mintSpendNoteWithIpfs, transferNft, getOperatorId, submitAuditMessage } = await import('@/lib/hedera');
+      const { submitSignedTransaction, transferToken, mintSpendNoteWithIpfs, transferNft, getOperatorId, submitAuditMessage, getTokenBalances } = await import('@/lib/hedera');
       const operatorId = getOperatorId().toString();
       const usdcTokenId = process.env.USDC_TEST_TOKEN_ID!;
       const noteTokenId = process.env.SPEND_NOTE_TOKEN_ID!;
+
+      // Pre-flight: verify treasury has enough USDC before proceeding
+      const treasuryBalances = await getTokenBalances(operatorId);
+      const treasuryUsdc = treasuryBalances.get(usdcTokenId) ?? 0;
+      if (treasuryUsdc < collar.advanceHts) {
+        return NextResponse.json(
+          { error: 'Treasury has insufficient USDC balance. Please try a smaller amount or try again later.' },
+          { status: 503 }
+        );
+      }
 
       // Submit client-signed collateral lock (server adds operator co-signature)
       if (signedCollateralTxBytes) {
@@ -164,6 +174,9 @@ export async function POST(req: NextRequest) {
     let cardToken: string | undefined;
     let cardLastFour: string | undefined;
 
+    let cardState: string | undefined;
+    let cardSpendLimit: number | undefined;
+
     if (issueCard) {
       const amountCents = Math.round(amount * 100);
       const result = await issueVirtualCard(amountCents);
@@ -174,6 +187,8 @@ export async function POST(req: NextRequest) {
         cardExpYear = result.card.expYear;
         cardToken = result.card.token;
         cardLastFour = result.card.lastFour;
+        cardState = result.card.state;
+        cardSpendLimit = result.card.spendLimit;
       }
     }
 
@@ -197,6 +212,8 @@ export async function POST(req: NextRequest) {
       recipientAccountId: recipientAccountId || undefined,
       cardToken,
       cardLastFour,
+      cardState: (cardState as 'OPEN' | 'PAUSED' | 'CLOSED') || undefined,
+      cardSpendLimit,
     });
 
     return NextResponse.json({

@@ -15,7 +15,7 @@ const appleHolding: Holding = {
 };
 
 const mockPrices = {
-  AAPL: { symbol: 'AAPL', price: 180, change: 2, changePercent: 1.1, lastUpdated: '' },
+  AAPL: { symbol: 'AAPL', price: 180, change: 2, changePercent: 1.1, lastUpdated: '', source: 'live' as const },
 };
 
 const teslaHolding: Holding = {

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useDynamicContext, useUserWallets } from '@dynamic-labs/sdk-react-core';
 import type { PlaidStatus } from '@/lib/use-plaid-holdings';
 import { useHederaKey } from '@/lib/use-hedera-key';
+import { authFetch } from '@/lib/use-auth-fetch';
 
 interface SettingsProps {
   plaidStatus: PlaidStatus;
@@ -28,10 +29,47 @@ export default function Settings({
   const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [copied, setCopied] = useState(false);
   const [evmCopied, setEvmCopied] = useState(false);
+  const [treasuryBalance, setTreasuryBalance] = useState<string | null>(null);
+  const [mintStatus, setMintStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [mintResult, setMintResult] = useState('');
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const fetchTreasuryBalance = async () => {
+    try {
+      const res = await authFetch('/api/admin/mint-treasury');
+      if (res.ok) {
+        const data = await res.json();
+        setTreasuryBalance(data.balanceFormatted);
+      }
+    } catch {
+      // silent
+    }
+  };
+
+  const mintTreasury = async () => {
+    setMintStatus('loading');
+    try {
+      const res = await authFetch('/api/admin/mint-treasury', {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMintStatus('success');
+        setMintResult(`Minted ${data.mintedFormatted}. Treasury now: ${data.treasury.afterFormatted}`);
+        setTreasuryBalance(data.treasury.afterFormatted);
+      } else {
+        setMintStatus('error');
+        setMintResult(data.error || 'Mint failed');
+      }
+    } catch {
+      setMintStatus('error');
+      setMintResult('Network error');
+    }
+  };
 
   const label = mounted ? (user?.email ?? user?.firstName ?? 'Demo User') : 'Demo User';
   const initial = label.charAt(0).toUpperCase();
@@ -191,6 +229,49 @@ export default function Settings({
             Testnet
           </div>
         </div>
+      </div>
+
+      {/* Treasury (Admin) */}
+      <div className="card p-6">
+        <div className="text-[11px] font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-tertiary)' }}>
+          Treasury
+        </div>
+        <div className="flex items-center gap-4 mb-4">
+          <div className="w-11 h-11 rounded-full flex items-center justify-center"
+            style={{ background: 'rgba(99,102,241,0.1)' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366F1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>USDC Balance</div>
+            <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+              {treasuryBalance ?? 'Tap Check to load'}
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={fetchTreasuryBalance}
+            className="flex-1 py-2.5 text-[13px] font-semibold rounded-xl transition-colors"
+            style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}
+          >
+            Check Balance
+          </button>
+          <button
+            onClick={mintTreasury}
+            disabled={mintStatus === 'loading'}
+            className="flex-1 py-2.5 text-[13px] font-semibold rounded-xl transition-colors"
+            style={{ background: 'var(--accent-muted)', color: 'var(--accent)', opacity: mintStatus === 'loading' ? 0.5 : 1 }}
+          >
+            {mintStatus === 'loading' ? 'Minting...' : 'Mint 10,000 USDC'}
+          </button>
+        </div>
+        {mintResult && (
+          <div className="mt-3 text-[11px] leading-relaxed" style={{ color: mintStatus === 'success' ? 'var(--positive)' : 'var(--negative)' }}>
+            {mintResult}
+          </div>
+        )}
       </div>
 
       {/* Dynamic Embedded Wallet */}

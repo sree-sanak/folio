@@ -114,7 +114,7 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch('/api/ai/optimize', {
+        const res = await authFetch('/api/ai/optimize', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ symbol: currentHolding.symbol, amount: val, durationMonths }),

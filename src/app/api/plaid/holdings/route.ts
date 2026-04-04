@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const userId = req.nextUrl.searchParams.get('userId') || 'demo-user';
+  const userId = auth.email;
   const accessToken = await getAccessToken(userId);
 
   if (!accessToken) {

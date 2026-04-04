@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTokenBalances } from '@/lib/hedera';
+import { verifyAuth, unauthorized } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const accountId = searchParams.get('accountId');
+  const auth = await verifyAuth(req);
+  if (!auth.authenticated) return unauthorized(auth.error);
+
+  const accountId = req.nextUrl.searchParams.get('accountId');
 
   if (!accountId) {
     return NextResponse.json(
