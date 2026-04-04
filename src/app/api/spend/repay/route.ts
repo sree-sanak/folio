@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   if (!auth.authenticated) return unauthorized(auth.error);
 
   try {
-    const { noteId } = await req.json();
+    const { noteId, signedRepayTxBytes } = await req.json();
 
     if (!noteId) {
       return NextResponse.json({ error: 'noteId required' }, { status: 400 });
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User has no Hedera account' }, { status: 400 });
     }
 
-    const result = await executeRepayment(noteId, user.hederaAccountId);
+    const result = await executeRepayment(noteId, user.hederaAccountId, signedRepayTxBytes);
 
     return NextResponse.json({
       success: true,

@@ -15,7 +15,8 @@ const hederaConfigured = !!(
  */
 export async function executeRepayment(
   noteId: number,
-  userAccountId: string
+  userAccountId: string,
+  signedRepayTxBytes?: string
 ): Promise<SettlementResult> {
   const note = await getNote(noteId);
   if (!note) throw new Error(`Note ${noteId} not found`);
@@ -25,14 +26,15 @@ export async function executeRepayment(
   const result = calculateRepayment(note);
 
   if (hederaConfigured) {
-    const { transferToken, getOperatorId, submitAuditMessage } = await import('./hedera');
+    const { transferToken, getOperatorId, submitSignedTransaction, submitAuditMessage } = await import('./hedera');
     const operatorId = getOperatorId().toString();
-    const usdcTokenId = process.env.USDC_TEST_TOKEN_ID!;
     const stockTokenId = getTokenIdForSymbol(note.symbol.replace('MOCK-', ''));
 
-    // User sends USDC back to operator
-    const amountHts = Math.floor(note.amount * 1e6);
-    await transferToken(usdcTokenId, userAccountId, operatorId, amountHts);
+    // Submit user-signed USDC repayment (user → operator)
+    if (signedRepayTxBytes) {
+      const bytes = Uint8Array.from(Buffer.from(signedRepayTxBytes, 'base64'));
+      await submitSignedTransaction(bytes);
+    }
 
     // Operator returns all collateral shares to user
     if (stockTokenId) {

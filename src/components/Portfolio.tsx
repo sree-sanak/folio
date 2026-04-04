@@ -7,6 +7,7 @@ import type { Holding } from '@/lib/types';
 import type { PlaidStatus } from '@/lib/use-plaid-holdings';
 import { formatUsd, formatShares } from '@/lib/collar';
 import { authFetch } from '@/lib/use-auth-fetch';
+import { useHederaKey } from '@/lib/use-hedera-key';
 
 interface PortfolioProps {
   holdings: Holding[];
@@ -40,8 +41,10 @@ export default function Portfolio({
   onSettleNote,
 }: PortfolioProps) {
   const [settling, setSettling] = useState(false);
+  const [settleStatus, setSettleStatus] = useState('');
   const [settleError, setSettleError] = useState<string | null>(null);
   const [settleSuccess, setSettleSuccess] = useState(false);
+  const { signTransaction } = useHederaKey();
 
   const visibleHoldings = holdings.filter((h) => h.shares > 0);
 
@@ -60,10 +63,13 @@ export default function Portfolio({
     return sum;
   }, 0);
 
+  // Outstanding advances are liabilities — subtract so portfolio nets to zero
+  const outstandingAdvances = activeNotes.reduce((sum, n) => sum + n.amount, 0);
+
   const totalValue = holdings.reduce((sum, h) => {
     const price = prices[h.symbol]?.price ?? 0;
     return sum + h.shares * price;
-  }, 0) + cryptoValue;
+  }, 0) + cryptoValue - outstandingAdvances;
 
   const totalChange = holdings.reduce((sum, h) => {
     const change = prices[h.symbol]?.change ?? 0;
@@ -156,10 +162,33 @@ export default function Portfolio({
               setSettling(true);
               setSettleError(null);
               try {
-                const res = await authFetch('/api/spend/repay', {
+                // Step 1: Prepare
+                setSettleStatus('Preparing...');
+                const prepRes = await authFetch('/api/spend/repay/prepare', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ noteId: urgentNote.id }),
+                });
+                if (!prepRes.ok) {
+                  const err = await prepRes.json().catch(() => ({}));
+                  throw new Error(err.error || 'Failed to prepare');
+                }
+
+                const prepData = await prepRes.json();
+                let signedRepayTxBytes: string | undefined;
+
+                // Step 2: Sign
+                if (prepData.needsSignature && prepData.repayTxBytes) {
+                  setSettleStatus('Signing...');
+                  signedRepayTxBytes = await signTransaction(prepData.repayTxBytes);
+                }
+
+                // Step 3: Execute
+                setSettleStatus('Settling...');
+                const res = await authFetch('/api/spend/repay', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ noteId: urgentNote.id, signedRepayTxBytes }),
                 });
                 if (res.ok) {
                   setSettleSuccess(true);
@@ -168,20 +197,21 @@ export default function Portfolio({
                     onSettleNote();
                   }, 3000);
                 } else {
-                  setSettleError('Settlement failed. Try again.');
-                  setTimeout(() => setSettleError(null), 5000);
+                  const err = await res.json().catch(() => ({}));
+                  throw new Error(err.error || 'Settlement failed');
                 }
-              } catch {
-                setSettleError('Settlement failed. Try again.');
+              } catch (err) {
+                setSettleError(err instanceof Error ? err.message : 'Settlement failed. Try again.');
                 setTimeout(() => setSettleError(null), 5000);
               } finally {
                 setSettling(false);
+                setSettleStatus('');
               }
             }}
             disabled={settling}
             className="btn-primary w-full py-3.5 text-[14px]"
           >
-            {settling ? 'Settling...' : `Settle & Unlock ${urgentNote.symbol}`}
+            {settling ? (settleStatus || 'Settling...') : `Settle & Unlock ${urgentNote.symbol}`}
           </button>
         </div>
       )}
