@@ -157,8 +157,8 @@ export async function POST(req: NextRequest) {
         const COLLAR_ORACLE = (process.env.COLLAR_ORACLE_ADDRESS || '0x00A3cF51bA20eA6f1754BaFcecA6d144e3d1D00f') as `0x${string}`;
         const ORACLE_FEE_RECIPIENT = COLLAR_ORACLE; // fees accrue to the oracle contract address
 
-        // 1. Send oracle maintenance fee (0.25 USDC per spend — covers gas for oracle updates)
-        const oracleFeeUsdc = BigInt(250_000); // 0.25 USDC (6 decimals)
+        // 1. Send oracle maintenance fee (0.10 USDC per spend — covers gas for oracle updates)
+        const oracleFeeUsdc = BigInt(100_000); // 0.10 USDC (6 decimals)
         const feeData = encodeFunctionData({
           abi: [{ name: 'transfer', type: 'function', inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ name: '', type: 'bool' }] }],
           functionName: 'transfer',
@@ -282,7 +282,7 @@ export async function POST(req: NextRequest) {
       oracle: (oracleFeeTxHash || oracleUpdateTxHash) ? {
         feeTxHash: oracleFeeTxHash,
         updateTxHash: oracleUpdateTxHash,
-        feeUsdc: 0.25,
+        feeUsdc: 0.10,
         chain: 'Base Sepolia',
         chainId: 84532,
       } : undefined,
