@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useDynamicContext, useUserWallets } from '@dynamic-labs/sdk-react-core';
 import { authFetch } from '@/lib/use-auth-fetch';
 import { useHederaKey } from './use-hedera-key';
+import { getStoredPublicKey } from './hedera-keystore';
 
 export interface FolioUser {
   email: string;
@@ -85,6 +86,8 @@ export function useUserRegistration() {
       // Encrypt key and store in Supabase
       setStatus('encrypting-key');
       await encryptAndStore(user.email, passphrase);
+      // Cache passphrase in sessionStorage so refreshes within same tab don't re-prompt
+      try { sessionStorage.setItem('folio:passphrase-cache', passphrase); } catch { /* private browsing */ }
 
       setFolioUser(data.user);
       setStatus('done');
@@ -102,6 +105,8 @@ export function useUserRegistration() {
     try {
       setStatus('recovering-key');
       await recoverKey(user.email, passphrase);
+      // Cache passphrase in sessionStorage so refreshes within same tab don't re-prompt
+      try { sessionStorage.setItem('folio:passphrase-cache', passphrase); } catch { /* private browsing */ }
       setStatus('idle');
     } catch {
       setError('Wrong passphrase. Please try again.');
@@ -173,6 +178,34 @@ export function useUserRegistration() {
         if (cancelled) return;
 
         if (keyData.hasEncryptedKey) {
+          // Try auto-recovery with cached passphrase (same browser session)
+          const cachedPassphrase = (() => { try { return sessionStorage.getItem('folio:passphrase-cache'); } catch { return null; } })();
+          if (cachedPassphrase) {
+            try {
+              setStatus('recovering-key');
+              await recoverKey(user!.email!, cachedPassphrase);
+              if (cancelled) return;
+              // Re-run registration with recovered key
+              const recoveredPubKey = getStoredPublicKey();
+              if (recoveredPubKey) {
+                setStatus('creating-account');
+                const regRes = await authFetch('/api/users/register', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email: user!.email, name: user!.firstName || '', publicKey: recoveredPubKey }),
+                });
+                if (regRes.ok) {
+                  const regData = await regRes.json();
+                  if (!cancelled) { setFolioUser(regData.user); setStatus('done'); }
+                  return;
+                }
+              }
+            } catch {
+              // Cached passphrase was wrong (changed?), clear it and prompt
+              try { sessionStorage.removeItem('folio:passphrase-cache'); } catch { /* */ }
+            }
+          }
+          if (cancelled) return;
           setNeedsRecovery(true);
           setStatus('needs-passphrase');
           return;
