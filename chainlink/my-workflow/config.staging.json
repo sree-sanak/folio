@@ -1,0 +1,19 @@
+{
+  "schedule": "*/30 * * * * *",
+  "chainSelectorName": "ethereum-testnet-sepolia",
+  "collarOracleAddress": "0x0000000000000000000000000000000000000000",
+  "dataStreamsUrl": "http://localhost:8787",
+  "dolthubBaseUrl": "https://www.dolthub.com/api/v1alpha1/post-no-preference/options/master",
+  "secretOwner": "",
+  "assets": [
+    {
+      "symbol": "AAPL",
+      "feedId": "0x000359843a543ee2fe414dc14c7e7920ef10f4372990b79d6361cdc0dd1ba782"
+    },
+    {
+      "symbol": "TSLA",
+      "feedId": "0x00039d9e45394f473ab1f050a1b963e6b05351e52d71e507509ada0c95ed75b8"
+    }
+  ],
+  "gasLimit": "500000"
+}
