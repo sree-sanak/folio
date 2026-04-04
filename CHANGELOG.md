@@ -2,6 +2,12 @@
 
 All notable changes to Folio will be documented in this file.
 
+## [0.2.4.0] - 2026-04-04
+
+### Fixed
+- Spend flow INVALID_SIGNATURE error: added pre-flight balance check so the collateral lock transaction is only attempted when the user has sufficient stock tokens on Hedera
+- AI collar analysis details now shown on the confirmation screen after completing a spend (previously discarded)
+
 ## [0.2.3.0] - 2026-04-04
 
 ### Added

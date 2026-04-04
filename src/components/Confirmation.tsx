@@ -57,6 +57,42 @@ export default function Confirmation({ result, onViewDetails, onDone }: Confirma
         </div>
       </div>
 
+      {/* AI Insights */}
+      {result.ai && (
+        <div className="card p-5 text-left mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'var(--accent-muted)' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round">
+                <path d="M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z" />
+                <path d="M16 14a4 4 0 0 0-8 0v3a4 4 0 0 0 8 0v-3z" />
+                <line x1="12" y1="8" x2="12" y2="14" />
+              </svg>
+            </div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+              AI Collar Analysis
+            </div>
+            <div className="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full" style={{
+              background: result.ai.confidence > 0.7 ? 'var(--accent-muted)' : 'var(--bg-elevated)',
+              color: result.ai.confidence > 0.7 ? 'var(--accent)' : 'var(--text-tertiary)',
+            }}>
+              {Math.round(result.ai.confidence * 100)}% confidence
+            </div>
+          </div>
+          <div className="text-[13px] leading-relaxed mb-2" style={{ color: 'var(--text-secondary)' }}>
+            {result.ai.reasoning}
+          </div>
+          {result.ai.warnings.length > 0 && (
+            <div className="space-y-1 mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+              {result.ai.warnings.map((w, i) => (
+                <div key={i} className="text-[12px] flex items-start gap-1.5" style={{ color: 'var(--text-tertiary)' }}>
+                  <span style={{ color: '#F59E0B' }}>!</span> {w}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Transaction ID */}
       <div className="text-[11px] mb-8 font-mono" style={{ color: 'var(--text-tertiary)' }}>
         <a

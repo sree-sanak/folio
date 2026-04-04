@@ -35,13 +35,20 @@ export async function POST(req: NextRequest) {
 
     const stockTokenId = getTokenIdForSymbol(symbol);
     if (hederaConfigured && stockTokenId) {
-      const { prepareCollateralLock } = await import('@/lib/hedera');
-      const txBytes = await prepareCollateralLock(
-        stockTokenId,
-        userAccountId,
-        collar.sharesHts
-      );
-      collateralLockTxBytes = Buffer.from(txBytes).toString('base64');
+      const { prepareCollateralLock, getTokenBalances } = await import('@/lib/hedera');
+
+      // Pre-flight: check if user actually has enough stock tokens to collateralize
+      const userBalances = await getTokenBalances(userAccountId);
+      const userStockBalance = userBalances.get(stockTokenId) ?? 0;
+
+      if (userStockBalance >= collar.sharesHts) {
+        const txBytes = await prepareCollateralLock(
+          stockTokenId,
+          userAccountId,
+          collar.sharesHts
+        );
+        collateralLockTxBytes = Buffer.from(txBytes).toString('base64');
+      }
     }
 
     return NextResponse.json({
