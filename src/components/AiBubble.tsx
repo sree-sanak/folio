@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { formatUsd, formatShares } from '@/lib/collar';
 import { authFetch } from '@/lib/use-auth-fetch';
+import { useHederaKey } from '@/lib/use-hedera-key';
 import type { PriceData } from '@/app/page';
 
 export interface ActiveNote {
@@ -63,9 +64,11 @@ export default function AiBubble({ activeNotes, prices, onRepaySuccess }: AiBubb
   const [showSpeech, setShowSpeech] = useState(false);
   const [showSheet, setShowSheet] = useState(false);
   const [settling, setSettling] = useState(false);
+  const [settleStatus, setSettleStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [bubbleVisible, setBubbleVisible] = useState(false);
+  const { signTransaction } = useHederaKey();
 
   const note = getMostUrgentNote(activeNotes);
 
@@ -112,10 +115,33 @@ export default function AiBubble({ activeNotes, prices, onRepaySuccess }: AiBubb
     setSettling(true);
     setError(null);
     try {
-      const res = await authFetch('/api/spend/repay', {
+      // Step 1: Prepare
+      setSettleStatus('Preparing...');
+      const prepRes = await authFetch('/api/spend/repay/prepare', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ noteId: note.id }),
+      });
+      if (!prepRes.ok) {
+        const err = await prepRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to prepare');
+      }
+
+      const prepData = await prepRes.json();
+      let signedRepayTxBytes: string | undefined;
+
+      // Step 2: Sign
+      if (prepData.needsSignature && prepData.repayTxBytes) {
+        setSettleStatus('Signing...');
+        signedRepayTxBytes = await signTransaction(prepData.repayTxBytes);
+      }
+
+      // Step 3: Execute
+      setSettleStatus('Settling...');
+      const res = await authFetch('/api/spend/repay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ noteId: note.id, signedRepayTxBytes }),
       });
       if (res.ok) {
         setSuccess(true);
@@ -125,14 +151,15 @@ export default function AiBubble({ activeNotes, prices, onRepaySuccess }: AiBubb
           onRepaySuccess();
         }, 2000);
       } else {
-        setError('Settlement failed. Try again.');
-        setTimeout(() => setError(null), 5000);
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Settlement failed');
       }
-    } catch {
-      setError('Settlement failed. Try again.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Settlement failed. Try again.');
       setTimeout(() => setError(null), 5000);
     } finally {
       setSettling(false);
+      setSettleStatus('');
     }
   };
 
@@ -242,7 +269,7 @@ export default function AiBubble({ activeNotes, prices, onRepaySuccess }: AiBubb
                   disabled={settling}
                   className="btn-primary w-full py-4 text-[15px]"
                 >
-                  {settling ? 'Settling...' : 'Settle Now'}
+                  {settling ? (settleStatus || 'Settling...') : 'Settle Now'}
                 </button>
               </>
             )}

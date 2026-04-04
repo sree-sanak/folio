@@ -121,8 +121,14 @@ describe('AiBubble', () => {
       expect(screen.getByText('Settle Now')).toBeInTheDocument();
     });
 
-    it('calls repay API on settle click and shows success', async () => {
+    it('calls prepare + repay API on settle click and shows success', async () => {
       jest.useRealTimers();
+      // Mock prepare response (no signature needed)
+      mockAuthFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ needsSignature: false }),
+      } as unknown as Response);
+      // Mock repay response
       mockAuthFetch.mockResolvedValueOnce({ ok: true } as Response);
       const onRepaySuccess = jest.fn();
 
@@ -138,9 +144,12 @@ describe('AiBubble', () => {
       fireEvent.click(screen.getByText('Settle Now'));
 
       await waitFor(() => {
-        expect(mockAuthFetch).toHaveBeenCalledWith('/api/spend/repay', expect.objectContaining({
+        expect(mockAuthFetch).toHaveBeenCalledWith('/api/spend/repay/prepare', expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ noteId: 1 }),
+        }));
+        expect(mockAuthFetch).toHaveBeenCalledWith('/api/spend/repay', expect.objectContaining({
+          method: 'POST',
         }));
       });
 
@@ -151,7 +160,11 @@ describe('AiBubble', () => {
 
     it('shows error on settle failure', async () => {
       jest.useRealTimers();
-      mockAuthFetch.mockResolvedValueOnce({ ok: false } as Response);
+      // Mock prepare failure
+      mockAuthFetch.mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({ error: 'fail' }),
+      } as unknown as Response);
 
       render(
         <AiBubble activeNotes={[baseNote]} prices={basePrices} onRepaySuccess={jest.fn()} />
@@ -165,7 +178,7 @@ describe('AiBubble', () => {
       fireEvent.click(screen.getByText('Settle Now'));
 
       await waitFor(() => {
-        expect(screen.getByText('Settlement failed. Try again.')).toBeInTheDocument();
+        expect(screen.getByText('fail')).toBeInTheDocument();
       });
     });
   });

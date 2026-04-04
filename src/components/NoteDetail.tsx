@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { formatUsd, formatShares, formatDate } from '@/lib/collar';
 import { authFetch } from '@/lib/use-auth-fetch';
+import { useHederaKey } from '@/lib/use-hedera-key';
 
 interface SpendNote {
   id: number;
@@ -12,6 +13,7 @@ interface SpendNote {
   floor: number;
   cap: number;
   recipientName: string;
+  recipientEmail?: string;
   status: 'active' | 'repaid' | 'settled' | 'liquidated' | 'expired';
   settlementPrice?: number;
   settlementSharesReturned?: number;
@@ -31,6 +33,9 @@ export default function NoteDetail({ noteId, onBack }: NoteDetailProps) {
   const [note, setNote] = useState<SpendNote | null>(null);
   const [loading, setLoading] = useState(true);
   const [repaying, setRepaying] = useState(false);
+  const [repayStatus, setRepayStatus] = useState('');
+  const [repayError, setRepayError] = useState('');
+  const { signTransaction } = useHederaKey();
 
   useEffect(() => {
     const fetchNote = async () => {
@@ -51,19 +56,47 @@ export default function NoteDetail({ noteId, onBack }: NoteDetailProps) {
   const handleRepay = async () => {
     if (!note) return;
     setRepaying(true);
+    setRepayError('');
     try {
-      const res = await authFetch('/api/spend/repay', {
+      // Step 1: Prepare
+      setRepayStatus('Preparing...');
+      const prepRes = await authFetch('/api/spend/repay/prepare', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ noteId: note.id }),
       });
+      if (!prepRes.ok) {
+        const err = await prepRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to prepare repayment');
+      }
+
+      const prepData = await prepRes.json();
+      let signedRepayTxBytes: string | undefined;
+
+      // Step 2: Sign
+      if (prepData.needsSignature && prepData.repayTxBytes) {
+        setRepayStatus('Signing...');
+        signedRepayTxBytes = await signTransaction(prepData.repayTxBytes);
+      }
+
+      // Step 3: Execute
+      setRepayStatus('Settling...');
+      const res = await authFetch('/api/spend/repay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ noteId: note.id, signedRepayTxBytes }),
+      });
       if (res.ok) {
         setNote({ ...note, status: 'repaid' });
+      } else {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Settlement failed');
       }
-    } catch {
-      // Show error state instead of false success
+    } catch (err) {
+      setRepayError(err instanceof Error ? err.message : 'Settlement failed');
     } finally {
       setRepaying(false);
+      setRepayStatus('');
     }
   };
 
@@ -146,7 +179,7 @@ export default function NoteDetail({ noteId, onBack }: NoteDetailProps) {
         <div>
           <div className="text-[16px] font-semibold">{note.recipientName}</div>
           <div className="text-[13px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-            {new Date(note.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            {note.recipientEmail || new Date(note.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </div>
         </div>
       </div>
@@ -239,13 +272,20 @@ export default function NoteDetail({ noteId, onBack }: NoteDetailProps) {
 
       {/* Repay Button */}
       {note.status === 'active' && (
-        <button
-          onClick={handleRepay}
-          disabled={repaying}
-          className="btn-primary w-full py-4.5 text-[15px]"
-        >
-          {repaying ? 'Processing...' : `Settle ${formatUsd(note.amount)} & Unlock Shares`}
-        </button>
+        <>
+          {repayError && (
+            <div className="text-center text-[13px] px-4 py-2 rounded-lg mb-2" style={{ color: 'var(--negative)', background: 'var(--bg-elevated)' }}>
+              {repayError}
+            </div>
+          )}
+          <button
+            onClick={handleRepay}
+            disabled={repaying}
+            className="btn-primary w-full py-4.5 text-[15px]"
+          >
+            {repaying ? (repayStatus || 'Processing...') : `Settle ${formatUsd(note.amount)} & Unlock Shares`}
+          </button>
+        </>
       )}
     </div>
   );

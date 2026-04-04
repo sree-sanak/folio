@@ -6,11 +6,13 @@
 const mockTransferToken = jest.fn().mockResolvedValue('tx-transfer');
 const mockGetOperatorId = jest.fn().mockReturnValue({ toString: () => '0.0.6256036' });
 const mockSubmitAuditMessage = jest.fn().mockResolvedValue(undefined);
+const mockSubmitSignedTransaction = jest.fn().mockResolvedValue(undefined);
 
 jest.mock('../hedera', () => ({
   transferToken: mockTransferToken,
   getOperatorId: mockGetOperatorId,
   submitAuditMessage: mockSubmitAuditMessage,
+  submitSignedTransaction: mockSubmitSignedTransaction,
 }));
 
 const mockGetNote = jest.fn();
@@ -63,17 +65,18 @@ describe('escrow executor', () => {
   });
 
   describe('executeRepayment', () => {
-    it('transfers USDC back to operator and returns all collateral', async () => {
+    it('submits signed repayment and returns all collateral', async () => {
       mockGetNote.mockResolvedValue({ ...activeNote });
 
-      const result = await executeRepayment(1, '0.0.99999');
+      const fakeSignedTx = Buffer.from('fake-signed-tx').toString('base64');
+      const result = await executeRepayment(1, '0.0.99999', fakeSignedTx);
 
       expect(result.outcome).toBe('repaid');
       expect(result.sharesToReturnHts).toBe(500_000);
 
-      // USDC from user to operator
-      expect(mockTransferToken).toHaveBeenCalledWith(
-        '0.0.300', '0.0.99999', '0.0.6256036', 100_000_000,
+      // User-signed USDC repayment submitted
+      expect(mockSubmitSignedTransaction).toHaveBeenCalledWith(
+        expect.any(Uint8Array),
       );
       // Shares from operator to user
       expect(mockTransferToken).toHaveBeenCalledWith(

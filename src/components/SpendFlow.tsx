@@ -184,6 +184,7 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
           issueCard: mode === 'card',
           recipientAccountId: mode === 'send' ? resolvedRecipientId : undefined,
           recipientName: mode === 'send' ? (recipientName || undefined) : undefined,
+          recipientEmail: mode === 'send' ? (recipientInput.trim() || undefined) : undefined,
           userAccountId: currentUserAccountId || '',
         }),
       });

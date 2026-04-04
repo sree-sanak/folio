@@ -532,6 +532,32 @@ export async function prepareCollateralLock(
   return tx.toBytes();
 }
 
+// Prepare unsigned USDC repayment transaction (user → operator)
+export async function prepareRepayment(
+  usdcTokenId: string,
+  userAccountId: string,
+  amount: number
+): Promise<Uint8Array> {
+  const client = getClient();
+  const operatorId = getOperatorId();
+
+  const tx = new TransferTransaction()
+    .addTokenTransfer(
+      TokenId.fromString(usdcTokenId),
+      AccountId.fromString(userAccountId),
+      -amount
+    )
+    .addTokenTransfer(
+      TokenId.fromString(usdcTokenId),
+      operatorId,
+      amount
+    )
+    .setTransactionValidDuration(180)
+    .freezeWith(client);
+
+  return tx.toBytes();
+}
+
 // Submit a client-signed transaction, adding operator co-signature
 export async function submitSignedTransaction(
   signedTxBytes: Uint8Array
