@@ -2,6 +2,22 @@
 
 All notable changes to Folio will be documented in this file.
 
+## [0.2.5.0] - 2026-04-04
+
+### Added
+- Persistent spend notes via Supabase `spend_notes` table (replaces in-memory store)
+- Escrow lifecycle: automated settlement on collar expiry with Hedera token transfers
+- Settlement math engine handling four outcomes: early repay, in-range settle, above-cap settle, below-floor liquidation
+- User repayment endpoint (`POST /api/spend/repay`) with USDC return and collateral release
+- Vercel cron job (`/api/cron/settle-expired`) runs every 4 hours to process expired collars
+- HCS audit logging for all settlement events (COLLAR_REPAID, COLLAR_SETTLED, COLLAR_LIQUIDATED)
+- Settlement details display in NoteDetail (settlement price, shares returned)
+- New note statuses: `settled` and `liquidated` with distinct visual treatment
+
+### Changed
+- All spend note storage migrated from in-memory array to Supabase
+- Card freeze route uses Supabase update instead of in-memory mutation
+
 ## [0.2.3.0] - 2026-04-04
 
 ### Added
