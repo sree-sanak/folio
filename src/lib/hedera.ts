@@ -260,11 +260,11 @@ export async function getTokenBalances(
 
   const result = new Map<string, number>();
   if (balance.tokens) {
-    // Convert the token map to our format
+    // Convert the token map — values are Long objects, use toString() to avoid precision loss
     const tokenMap = balance.tokens._map ?? balance.tokens;
     if (tokenMap instanceof Map) {
       tokenMap.forEach((value: unknown, key: unknown) => {
-        result.set(String(key), Number(value));
+        result.set(String(key), Number(String(value)));
       });
     }
   }
