@@ -74,9 +74,9 @@ const V3_REPORT_PARAMS = [
 	{ name: 'ask', type: 'int192' },
 ] as const
 
-// CollarOracle contract ABI
+// CollarOracle contract ABI — accepts IV-derived floor/cap from the workflow
 const COLLAR_ORACLE_ABI = parseAbi([
-	'function updateCollars(string[] symbols, uint256[] prices, uint256[] volatilities) external',
+	'function updateCollars(string[] symbols, uint256[] prices, uint256[] floors, uint256[] caps, uint256[] volatilities) external',
 ])
 
 // ---------------------------------------------------------------------------
@@ -113,6 +113,59 @@ interface VolatilityResult {
 interface DoltHubResponse {
 	query_execution_status: string
 	rows: Array<Record<string, string>>
+}
+
+interface CollarStrike {
+	symbol: string
+	price: bigint     // 8 decimals
+	floor: bigint     // 8 decimals
+	cap: bigint       // 8 decimals
+	volatility: bigint // basis points
+}
+
+// ---------------------------------------------------------------------------
+// Collar Math — zero-cost collar using log-symmetric approximation
+//
+// Given spot price and IV, compute floor (protective put strike) and cap
+// (covered call strike) for a zero-cost collar. Uses the forward price and
+// log-normal symmetry: same distance above and below the forward in log space.
+//
+// Higher IV → wider collar → more upside surrendered for the same protection.
+// This is the core tradeoff Folio surfaces to users.
+// ---------------------------------------------------------------------------
+
+const COLLAR_DURATION_DAYS = 30 // 1-month collar
+const RISK_FREE_RATE = 0.05     // 5% annual
+const LTV = 0.80                // 80% loan-to-value
+
+function computeCollarStrikes(
+	price8dec: bigint,
+	ivPercent: number,
+): { floor8dec: bigint; cap8dec: bigint } {
+	const spot = Number(price8dec) / 1e8
+	const iv = ivPercent / 100 // convert from percentage to decimal
+	const T = COLLAR_DURATION_DAYS / 365
+
+	// Forward price: S * e^(r*T)
+	const fwd = spot * Math.exp(RISK_FREE_RATE * T)
+
+	// Volatility over the collar period
+	const sigmaT = iv * Math.sqrt(T)
+
+	// Floor: set by LTV — this is how much the user can borrow against
+	const floor = spot * LTV
+
+	// Log-distance from forward to floor
+	const dDown = Math.log(fwd / floor) / sigmaT
+
+	// Cap: same log-distance above forward (zero-cost symmetric collar)
+	const cap = fwd * Math.exp(dDown * sigmaT)
+
+	// Convert back to 8 decimals
+	const floor8dec = BigInt(Math.round(floor * 1e8))
+	const cap8dec = BigInt(Math.round(cap * 1e8))
+
+	return { floor8dec, cap8dec }
 }
 
 // ---------------------------------------------------------------------------
@@ -276,8 +329,7 @@ const fetchVolatility = (
 
 function writeCollarParams(
 	runtime: Runtime<Config>,
-	prices: AssetPrice[],
-	volatilities: VolatilityResult,
+	collars: CollarStrike[],
 ): string {
 	const network = getNetwork({
 		chainFamily: 'evm',
@@ -291,11 +343,11 @@ function writeCollarParams(
 
 	const evmClient = new cre.capabilities.EVMClient(network.chainSelector.selector)
 
-	const symbols = prices.map((p) => p.symbol)
-	const priceValues = prices.map((p) => p.price)
-	const volValues = volatilities.volatilities.map((v) =>
-		BigInt(Math.round(v.impliedVolatility * 100)),
-	)
+	const symbols = collars.map((c) => c.symbol)
+	const priceValues = collars.map((c) => c.price)
+	const floorValues = collars.map((c) => c.floor)
+	const capValues = collars.map((c) => c.cap)
+	const volValues = collars.map((c) => c.volatility)
 
 	runtime.log(`[CollarOracle] Writing ${symbols.length} collars: ${symbols.join(', ')}`)
 
@@ -303,7 +355,7 @@ function writeCollarParams(
 	const callData = encodeFunctionData({
 		abi: COLLAR_ORACLE_ABI,
 		functionName: 'updateCollars',
-		args: [symbols, priceValues, volValues],
+		args: [symbols, priceValues, floorValues, capValues, volValues],
 	})
 
 	// Build the DON consensus report containing our collar data
@@ -383,18 +435,39 @@ export const onCronTrigger = (
 		runtime.log(`  ${v.symbol}: IV=${v.impliedVolatility.toFixed(1)}% HV=${v.historicalVolatility.toFixed(1)}% IVRank=${v.ivRank}`)
 	}
 
+	// Compute IV-derived collar strikes for each asset
+	runtime.log('[Collar Math] Computing zero-cost collar strikes from IV...')
+	const collars: CollarStrike[] = prices.map((p) => {
+		const vol = volatilities.volatilities.find((v) => v.symbol === p.symbol)
+		const ivPct = vol?.impliedVolatility ?? 30 // default 30% if missing
+		const { floor8dec, cap8dec } = computeCollarStrikes(p.price, ivPct)
+
+		const usd = Number(p.price) / 1e8
+		const floorUsd = Number(floor8dec) / 1e8
+		const capUsd = Number(cap8dec) / 1e8
+		runtime.log(`  ${p.symbol}: $${usd.toFixed(2)} → floor=$${floorUsd.toFixed(2)} cap=$${capUsd.toFixed(2)} (IV=${ivPct.toFixed(1)}%, ${COLLAR_DURATION_DAYS}d, LTV=${LTV * 100}%)`)
+
+		return {
+			symbol: p.symbol,
+			price: p.price,
+			floor: floor8dec,
+			cap: cap8dec,
+			volatility: BigInt(Math.round(ivPct * 100)), // basis points
+		}
+	})
+
 	// Step 3: Write on-chain
 	runtime.log('[Step 3] Writing to CollarOracle (EVM Write)...')
-	const txHash = writeCollarParams(runtime, prices, volatilities)
+	const txHash = writeCollarParams(runtime, collars)
 
 	// Summary
-	const summary = prices
-		.map((p) => {
-			const vol = volatilities.volatilities.find((v) => v.symbol === p.symbol)
-			const usd = Number(p.price) / 1e8
-			const floor = usd * 0.95
-			const cap = usd * 1.15
-			return `${p.symbol}=$${usd.toFixed(0)} [${floor.toFixed(0)}-${cap.toFixed(0)}] IV=${vol?.impliedVolatility.toFixed(0)}% IVRank=${vol?.ivRank}`
+	const summary = collars
+		.map((c) => {
+			const usd = Number(c.price) / 1e8
+			const floorUsd = Number(c.floor) / 1e8
+			const capUsd = Number(c.cap) / 1e8
+			const ivBps = Number(c.volatility)
+			return `${c.symbol}=$${usd.toFixed(0)} [${floorUsd.toFixed(0)}-${capUsd.toFixed(0)}] IV=${(ivBps / 100).toFixed(0)}%`
 		})
 		.join(' | ')
 

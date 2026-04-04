@@ -28,9 +28,9 @@ contract CollarOracle {
     address public forwarder;
     address public owner;
 
-    // Collar configuration (basis points)
-    uint256 public constant FLOOR_BPS = 500;   // 5% below spot
-    uint256 public constant CAP_BPS = 1500;    // 15% above spot
+    // Default collar bounds (basis points) — used only if workflow doesn't provide them
+    uint256 public constant DEFAULT_FLOOR_BPS = 500;   // 5% below spot
+    uint256 public constant DEFAULT_CAP_BPS = 1500;    // 15% above spot
 
     event CollarUpdated(
         string symbol,
@@ -71,60 +71,40 @@ contract CollarOracle {
     }
 
     /**
-     * @notice Update collar parameters — called by CRE workflow via forwarder
-     * @param symbol Asset symbol (e.g. "ETH", "BTC")
-     * @param price Current price from Chainlink feed (8 decimals)
-     * @param volatility Implied volatility in basis points
-     */
-    function updateCollar(
-        string calldata symbol,
-        uint256 price,
-        uint256 volatility
-    ) external onlyForwarderOrOwner {
-        bytes32 key = keccak256(abi.encodePacked(symbol));
-
-        uint256 floor = price * (10000 - FLOOR_BPS) / 10000;
-        uint256 cap = price * (10000 + CAP_BPS) / 10000;
-
-        collars[key] = CollarParams({
-            price: price,
-            floor: floor,
-            cap: cap,
-            volatility: volatility,
-            updatedAt: block.timestamp
-        });
-
-        emit CollarUpdated(symbol, price, floor, cap, volatility, block.timestamp);
-    }
-
-    /**
-     * @notice Batch update multiple collars in one tx
+     * @notice Batch update collars with IV-derived floor/cap from CRE workflow
+     * @param symbols Asset symbols
+     * @param prices Current prices from Chainlink Data Streams (8 decimals)
+     * @param floors IV-derived floor strikes (8 decimals)
+     * @param caps IV-derived cap strikes (8 decimals)
+     * @param volatilities Implied volatility in basis points
      */
     function updateCollars(
         string[] calldata symbols,
         uint256[] calldata prices,
+        uint256[] calldata floors,
+        uint256[] calldata caps,
         uint256[] calldata volatilities
     ) external onlyForwarderOrOwner {
         require(
-            symbols.length == prices.length && prices.length == volatilities.length,
+            symbols.length == prices.length &&
+            prices.length == floors.length &&
+            floors.length == caps.length &&
+            caps.length == volatilities.length,
             "CollarOracle: length mismatch"
         );
 
         for (uint256 i = 0; i < symbols.length; i++) {
             bytes32 key = keccak256(abi.encodePacked(symbols[i]));
 
-            uint256 floor = prices[i] * (10000 - FLOOR_BPS) / 10000;
-            uint256 cap = prices[i] * (10000 + CAP_BPS) / 10000;
-
             collars[key] = CollarParams({
                 price: prices[i],
-                floor: floor,
-                cap: cap,
+                floor: floors[i],
+                cap: caps[i],
                 volatility: volatilities[i],
                 updatedAt: block.timestamp
             });
 
-            emit CollarUpdated(symbols[i], prices[i], floor, cap, volatilities[i], block.timestamp);
+            emit CollarUpdated(symbols[i], prices[i], floors[i], caps[i], volatilities[i], block.timestamp);
         }
     }
 

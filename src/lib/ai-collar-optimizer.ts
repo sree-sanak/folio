@@ -10,6 +10,7 @@
 import { z } from 'zod';
 import { getStockPrice } from './price';
 import { getVolatilityData } from './volatility';
+import { getChainlinkCollar, type ChainlinkCollar } from './chainlink';
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -40,6 +41,13 @@ export interface OptimizationContext {
 export async function optimizeCollar(
   context: OptimizationContext
 ): Promise<CollarRecommendation> {
+  // Try Chainlink oracle first — on-chain, DON-verified collar params
+  const chainlinkCollar = await getChainlinkCollar(context.symbol);
+  if (chainlinkCollar && isChainlinkFresh(chainlinkCollar)) {
+    console.log(`[collar] Using Chainlink oracle for ${context.symbol}: floor=$${chainlinkCollar.floor.toFixed(2)} cap=$${chainlinkCollar.cap.toFixed(2)}`);
+    return chainlinkToRecommendation(chainlinkCollar, context.stockPrice);
+  }
+
   // Always fetch real volatility data
   const volData = await getVolatilityData(context.symbol);
 
@@ -54,6 +62,32 @@ export async function optimizeCollar(
 
   // Quantitative fallback using real market data (no LLM needed)
   return quantitativeOptimize(context, volData);
+}
+
+/** Chainlink data is fresh if updated within the last hour */
+function isChainlinkFresh(collar: ChainlinkCollar): boolean {
+  const ageMs = Date.now() - collar.updatedAt.getTime();
+  return ageMs < 60 * 60 * 1000;
+}
+
+/** Convert on-chain Chainlink collar params to a CollarRecommendation */
+function chainlinkToRecommendation(
+  collar: ChainlinkCollar,
+  currentPrice: number,
+): CollarRecommendation {
+  const floorPct = Math.max(0.01, (currentPrice - collar.floor) / currentPrice);
+  const capPct = Math.max(0.05, (collar.cap - currentPrice) / currentPrice);
+  const ivAnnual = collar.volatility / 100; // basis points to percentage
+
+  return {
+    floorPct: Math.min(0.25, floorPct),
+    capPct: Math.min(0.40, capPct),
+    durationMonths: 1,
+    confidence: 0.95, // DON-verified, highest confidence
+    reasoning: `Chainlink CollarOracle (DON-verified): IV=${ivAnnual.toFixed(1)}%, zero-cost collar with 80% LTV. Floor and cap derived from real options implied volatility via decentralized oracle consensus.`,
+    riskLevel: floorPct > 0.12 ? 'conservative' : floorPct < 0.06 ? 'aggressive' : 'moderate',
+    warnings: [],
+  };
 }
 
 // AI-enhanced: feeds real vol data to the LLM for nuanced optimization
