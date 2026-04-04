@@ -221,6 +221,7 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
         card: data.card,
         recipientName: mode === 'send' ? (recipientName || resolvedRecipientId) : undefined,
         recipientAccountId: mode === 'send' ? resolvedRecipientId : undefined,
+        ai: data.ai,
       });
     } catch (err) {
       setSendError(err instanceof Error ? err.message : 'Something went wrong');

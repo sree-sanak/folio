@@ -50,6 +50,13 @@ export interface SpendResult {
   // P2P fields (present when send flow is used)
   recipientName?: string; // Hedera account ID of recipient
   recipientAccountId?: string;
+  // AI collar optimization details
+  ai?: {
+    confidence: number;
+    riskLevel: string;
+    reasoning: string;
+    warnings: string[];
+  };
 }
 
 export default function Home() {
