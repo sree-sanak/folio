@@ -60,8 +60,8 @@ function toHex64(value: bigint): string {
  * Matches: https://docs.chain.link/data-streams/reference/report-schema/v3
  */
 function encodeV3Report(feedId: string, validFrom: number, observations: number, price: bigint): string {
-  const bid = (price * 999n) / 1000n;
-  const ask = (price * 1001n) / 1000n;
+  const bid = (price * BigInt(999)) / BigInt(1000);
+  const ask = (price * BigInt(1001)) / BigInt(1000);
   const nativeFee = BigInt('10000000000000');
   const linkFee = BigInt('5000000000000000');
   const expiresAt = observations + 3600;
