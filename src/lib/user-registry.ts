@@ -7,6 +7,9 @@ export interface FolioUser {
   name: string;
   hederaAccountId: string;
   publicKey?: string;
+  encryptedKey?: string;
+  keySalt?: string;
+  keyIv?: string;
   createdAt: string;
 }
 
@@ -15,6 +18,9 @@ interface UserRow {
   name: string;
   hedera_account_id: string;
   public_key: string | null;
+  encrypted_key: string | null;
+  key_salt: string | null;
+  key_iv: string | null;
   created_at: string;
 }
 
@@ -24,6 +30,9 @@ function rowToUser(row: UserRow): FolioUser {
     name: row.name,
     hederaAccountId: row.hedera_account_id,
     publicKey: row.public_key ?? undefined,
+    encryptedKey: row.encrypted_key ?? undefined,
+    keySalt: row.key_salt ?? undefined,
+    keyIv: row.key_iv ?? undefined,
     createdAt: row.created_at,
   };
 }
@@ -57,6 +66,23 @@ export async function registerUser(
     .single();
   if (error) throw error;
   return rowToUser(data);
+}
+
+export async function storeEncryptedKey(
+  email: string,
+  encryptedKey: string,
+  keySalt: string,
+  keyIv: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('users')
+    .update({
+      encrypted_key: encryptedKey,
+      key_salt: keySalt,
+      key_iv: keyIv,
+    })
+    .eq('email', email.toLowerCase());
+  if (error) throw error;
 }
 
 export async function searchUsers(query: string): Promise<FolioUser[]> {

@@ -1,9 +1,78 @@
 'use client';
 
 // Client-side Hedera key management — private key never leaves the browser
+// Keys are encrypted client-side with a user passphrase before being stored in Supabase
 
 const STORAGE_KEY_PRIVATE = 'folio:hedera:privateKey';
 const STORAGE_KEY_PUBLIC = 'folio:hedera:publicKey';
+
+// --- Encryption helpers (Web Crypto API) ---
+
+const PBKDF2_ITERATIONS = 600_000;
+
+async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKey> {
+  const enc = new TextEncoder().encode(passphrase);
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', enc.buffer as ArrayBuffer, 'PBKDF2', false, ['deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: salt.buffer as ArrayBuffer, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+export async function encryptPrivateKey(
+  privateKeyDer: string,
+  passphrase: string
+): Promise<{ encryptedKey: string; salt: string; iv: string }> {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(passphrase, salt);
+  const plaintext = new TextEncoder().encode(privateKeyDer);
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: iv.buffer as ArrayBuffer },
+    key,
+    plaintext.buffer as ArrayBuffer
+  );
+  return {
+    encryptedKey: bufferToBase64(new Uint8Array(encrypted)),
+    salt: bufferToBase64(salt),
+    iv: bufferToBase64(iv),
+  };
+}
+
+export async function decryptPrivateKey(
+  encryptedKey: string,
+  salt: string,
+  iv: string,
+  passphrase: string
+): Promise<string> {
+  const key = await deriveKey(passphrase, base64ToBuffer(salt));
+  const ivBuf = base64ToBuffer(iv);
+  const dataBuf = base64ToBuffer(encryptedKey);
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: ivBuf.buffer as ArrayBuffer },
+    key,
+    dataBuf.buffer as ArrayBuffer
+  );
+  return new TextDecoder().decode(decrypted);
+}
+
+function bufferToBase64(buf: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < buf.length; i++) binary += String.fromCharCode(buf[i]);
+  return btoa(binary);
+}
+
+function base64ToBuffer(b64: string): Uint8Array {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
 
 export function hasKeypair(): boolean {
   if (typeof window === 'undefined') return false;
