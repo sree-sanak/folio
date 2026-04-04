@@ -16,6 +16,8 @@ import Settings from '@/components/Settings';
 import { AuthGuard } from '@/components/auth/auth-guard';
 import { usePlaidHoldings } from '@/lib/use-plaid-holdings';
 import { useUserRegistration } from '@/lib/use-user-registration';
+import AiBubble from '@/components/AiBubble';
+import type { ActiveNote } from '@/components/AiBubble';
 import { authFetch } from '@/lib/use-auth-fetch';
 import type { Holding } from '@/lib/types';
 
@@ -81,6 +83,7 @@ export default function Home() {
   } = useUserRegistration();
   const [passphraseInput, setPassphraseInput] = useState('');
   const [cryptoHoldings, setCryptoHoldings] = useState<Holding[]>([]);
+  const [activeNotes, setActiveNotes] = useState<ActiveNote[]>([]);
 
   const navMap: Record<Screen, string> = {
     portfolio: 'portfolio',
@@ -95,14 +98,35 @@ export default function Home() {
     settings: 'settings',
   };
 
+  const fetchNotes = useCallback(async () => {
+    try {
+      const res = await authFetch('/api/notes');
+      const data = await res.json();
+      const notes = (data.notes ?? [])
+        .filter((n: ActiveNote) => n.status === 'active')
+        .map((n: ActiveNote) => ({
+          id: n.id, symbol: n.symbol, amount: n.amount, shares: n.shares,
+          floor: n.floor, cap: n.cap, expiryDate: n.expiryDate, status: n.status,
+        }));
+      setActiveNotes(notes);
+    } catch {
+      setActiveNotes([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotes();
+  }, [fetchNotes]);
+
   const fetchPrices = useCallback(async () => {
     try {
-      // Build symbols list from holdings
+      // Build symbols list from holdings + active note collateral
       const symbols = holdings
         .filter((h) => h.shares > 0)
         .map((h) => h.symbol);
+      const noteSymbols = activeNotes.map((n) => n.symbol);
       // Always include TSLA and AAPL for fallback display
-      const allSymbols = [...new Set(['TSLA', 'AAPL', ...symbols])];
+      const allSymbols = [...new Set(['TSLA', 'AAPL', ...symbols, ...noteSymbols])];
       const query = allSymbols.length > 0 ? `?symbols=${allSymbols.join(',')}` : '';
 
       const res = await authFetch(`/api/price${query}`);
@@ -114,7 +138,7 @@ export default function Home() {
         AAPL: { symbol: 'AAPL', price: 178.5, change: 0, changePercent: 0, lastUpdated: '2025-01-01T00:00:00Z', source: 'fallback' },
       });
     }
-  }, [holdings]);
+  }, [holdings, activeNotes]);
 
   useEffect(() => {
     fetchPrices();
@@ -156,6 +180,7 @@ export default function Home() {
   const handleSpendComplete = (result: SpendResult) => {
     setLastSpend(result);
     setScreen(result.card ? 'card-result' : 'confirm');
+    fetchNotes(); // Refresh active notes after new spend
   };
 
   const handleViewNote = (noteId: number) => {
@@ -256,6 +281,7 @@ export default function Home() {
               plaidStatus={plaidStatus}
               isPlaidAvailable={isPlaidAvailable}
               isDemo={isDemo}
+              activeNotes={activeNotes}
               onConnectBrokerage={openLink}
               onSpendFromHolding={handleViewHolding}
               onSpend={() => {
@@ -265,6 +291,7 @@ export default function Home() {
               }}
               onViewNotes={() => setScreen('notes')}
               onViewCards={() => setScreen('cards')}
+              onSettleNote={fetchNotes}
             />
           )}
           {screen === 'stock-detail' && selectedHolding && (
@@ -351,6 +378,7 @@ export default function Home() {
         </div>
       </main>
 
+      <AiBubble activeNotes={activeNotes} prices={prices} onRepaySuccess={fetchNotes} />
       <BottomNav activeTab={navMap[screen]} onNavigate={(s) => setScreen(s as Screen)} />
     </div>
     </AuthGuard>

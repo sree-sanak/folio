@@ -16,6 +16,17 @@ const mockPrices = {
   NFLX: { symbol: 'NFLX', price: 600, change: -5, changePercent: -0.8, lastUpdated: '', source: 'live' as const },
 };
 
+const mockActiveNote = {
+  id: 1,
+  symbol: 'AAPL',
+  amount: 500,
+  shares: 2,
+  floor: 150,
+  cap: 220,
+  expiryDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+  status: 'active',
+};
+
 const defaultProps = {
   holdings: mockHoldings,
   cryptoHoldings: [],
@@ -23,11 +34,13 @@ const defaultProps = {
   plaidStatus: 'connected' as const,
   isPlaidAvailable: true,
   isDemo: false,
+  activeNotes: [] as typeof mockActiveNote[],
   onConnectBrokerage: jest.fn(),
   onSpendFromHolding: jest.fn(),
   onSpend: jest.fn(),
   onViewNotes: jest.fn(),
   onViewCards: jest.fn(),
+  onSettleNote: jest.fn(),
 };
 
 describe('Portfolio', () => {
@@ -87,5 +100,28 @@ describe('Portfolio', () => {
     // Appears in both header and "Available to Spend" card
     render(<Portfolio {...defaultProps} />);
     expect(screen.getAllByText('$4,800.00')).toHaveLength(2);
+  });
+
+  it('shows Outstanding Advance card when active notes exist', () => {
+    render(<Portfolio {...defaultProps} activeNotes={[mockActiveNote]} />);
+    expect(screen.getByText('Outstanding Advance')).toBeInTheDocument();
+    expect(screen.getByText('$500.00')).toBeInTheDocument();
+    expect(screen.getByText(/AAPL shares locked as collateral/)).toBeInTheDocument();
+  });
+
+  it('hides advance card when no active notes', () => {
+    render(<Portfolio {...defaultProps} activeNotes={[]} />);
+    expect(screen.queryByText('Outstanding Advance')).not.toBeInTheDocument();
+  });
+
+  it('shows settle button with note symbol', () => {
+    render(<Portfolio {...defaultProps} activeNotes={[mockActiveNote]} />);
+    expect(screen.getByText('Settle & Unlock AAPL')).toBeInTheDocument();
+  });
+
+  it('shrinks Available to Spend when advance exists', () => {
+    render(<Portfolio {...defaultProps} activeNotes={[mockActiveNote]} />);
+    // Should NOT show the subtitle when in compact mode
+    expect(screen.queryByText('Spend directly from your portfolio')).not.toBeInTheDocument();
   });
 });

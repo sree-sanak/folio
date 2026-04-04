@@ -1,8 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import type { PriceData } from '@/app/page';
+import type { ActiveNote } from '@/components/AiBubble';
 import type { Holding } from '@/lib/types';
 import type { PlaidStatus } from '@/lib/use-plaid-holdings';
+import { formatUsd, formatShares } from '@/lib/collar';
+import { authFetch } from '@/lib/use-auth-fetch';
 
 interface PortfolioProps {
   holdings: Holding[];
@@ -11,11 +15,13 @@ interface PortfolioProps {
   plaidStatus: PlaidStatus;
   isPlaidAvailable: boolean;
   isDemo: boolean;
+  activeNotes: ActiveNote[];
   onConnectBrokerage: () => void;
   onSpendFromHolding: (holding: Holding) => void;
   onSpend: () => void;
   onViewNotes: () => void;
   onViewCards: () => void;
+  onSettleNote: () => void;
 }
 
 export default function Portfolio({
@@ -25,13 +31,28 @@ export default function Portfolio({
   plaidStatus,
   isPlaidAvailable,
   isDemo,
+  activeNotes,
   onConnectBrokerage,
   onSpendFromHolding,
   onSpend,
   onViewNotes,
   onViewCards,
+  onSettleNote,
 }: PortfolioProps) {
+  const [settling, setSettling] = useState(false);
+  const [settleError, setSettleError] = useState<string | null>(null);
+  const [settleSuccess, setSettleSuccess] = useState(false);
+
   const visibleHoldings = holdings.filter((h) => h.shares > 0);
+
+  // Most urgent active note (closest expiry, then largest amount)
+  const urgentNote = activeNotes.length > 0
+    ? [...activeNotes].sort((a, b) => {
+        const dateCompare = new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
+        if (dateCompare !== 0) return dateCompare;
+        return b.amount - a.amount;
+      })[0]
+    : null;
 
   // Crypto holdings value (USDC and CARDS = $1 each)
   const cryptoValue = cryptoHoldings.reduce((sum, h) => {
@@ -95,6 +116,90 @@ export default function Portfolio({
           Transactions
         </button>
       </div>
+
+      {/* Outstanding Advance */}
+      {urgentNote && !settleSuccess && (
+        <div className="card p-6 relative overflow-hidden"
+          style={{ border: '1px solid rgba(245,158,11,0.2)' }}>
+          <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-[0.04]"
+            style={{ background: '#F59E0B', filter: 'blur(40px)', transform: 'translate(30%, -30%)' }} />
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#F59E0B' }}>
+              Outstanding Advance
+            </div>
+            {(() => {
+              const daysLeft = Math.max(0, Math.ceil((new Date(urgentNote.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+              return daysLeft <= 7 ? (
+                <div className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                  style={{ background: 'rgba(245,158,11,0.1)', color: '#F59E0B' }}>
+                  {daysLeft === 0 ? 'Expires today' : `${daysLeft}d left`}
+                </div>
+              ) : null;
+            })()}
+          </div>
+          <div className="flex items-baseline justify-between mb-1">
+            <div className="text-[28px] font-bold" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {formatUsd(urgentNote.amount)}
+            </div>
+          </div>
+          <div className="text-[13px] mb-5" style={{ color: 'var(--text-tertiary)' }}>
+            {formatShares(urgentNote.shares)} {urgentNote.symbol} shares locked as collateral
+            {activeNotes.length > 1 && (
+              <span style={{ color: 'var(--text-tertiary)' }}> · and {activeNotes.length - 1} more</span>
+            )}
+          </div>
+          {settleError && (
+            <div className="text-[13px] mb-3 text-center" style={{ color: 'var(--negative)' }}>{settleError}</div>
+          )}
+          <button
+            onClick={async () => {
+              setSettling(true);
+              setSettleError(null);
+              try {
+                const res = await authFetch('/api/spend/repay', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ noteId: urgentNote.id }),
+                });
+                if (res.ok) {
+                  setSettleSuccess(true);
+                  setTimeout(() => {
+                    setSettleSuccess(false);
+                    onSettleNote();
+                  }, 3000);
+                } else {
+                  setSettleError('Settlement failed. Try again.');
+                  setTimeout(() => setSettleError(null), 5000);
+                }
+              } catch {
+                setSettleError('Settlement failed. Try again.');
+                setTimeout(() => setSettleError(null), 5000);
+              } finally {
+                setSettling(false);
+              }
+            }}
+            disabled={settling}
+            className="btn-primary w-full py-3.5 text-[14px]"
+          >
+            {settling ? 'Settling...' : `Settle & Unlock ${urgentNote.symbol}`}
+          </button>
+        </div>
+      )}
+
+      {/* Settle Success */}
+      {settleSuccess && (
+        <div className="card p-6 text-center"
+          style={{ border: '1px solid rgba(16,185,129,0.2)' }}>
+          <div className="w-12 h-12 mx-auto mb-3 rounded-full flex items-center justify-center"
+            style={{ background: 'rgba(16,185,129,0.12)' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+          </div>
+          <div className="text-[16px] font-bold" style={{ color: '#10B981' }}>Advance Settled</div>
+          <div className="text-[13px] mt-1" style={{ color: 'var(--text-tertiary)' }}>Shares unlocked and returned</div>
+        </div>
+      )}
 
       {/* Connect Brokerage or Holdings */}
       <div>
@@ -286,19 +391,30 @@ export default function Portfolio({
 
       {/* Available to Spend */}
       {hasHoldings && (
-        <div className="card p-6 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-[0.04]"
-            style={{ background: 'var(--accent)', filter: 'blur(40px)', transform: 'translate(30%, -30%)' }} />
-          <div className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-tertiary)' }}>
-            Available to Spend
+        urgentNote ? (
+          <div className="card px-5 py-4 flex items-center justify-between">
+            <div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+              Available to Spend
+            </div>
+            <div className="text-[18px] font-bold" style={{ color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>
+              ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
           </div>
-          <div className="text-[30px] font-bold" style={{ color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>
-            ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        ) : (
+          <div className="card p-6 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-[0.04]"
+              style={{ background: 'var(--accent)', filter: 'blur(40px)', transform: 'translate(30%, -30%)' }} />
+            <div className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-tertiary)' }}>
+              Available to Spend
+            </div>
+            <div className="text-[30px] font-bold" style={{ color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>
+              ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <div className="text-[13px] mt-2" style={{ color: 'var(--text-tertiary)' }}>
+              Spend directly from your portfolio
+            </div>
           </div>
-          <div className="text-[13px] mt-2" style={{ color: 'var(--text-tertiary)' }}>
-            Spend directly from your portfolio
-          </div>
-        </div>
+        )
       )}
     </div>
   );
