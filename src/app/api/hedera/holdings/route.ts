@@ -1,13 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { holdingGradient } from '@/lib/types';
 import { getTokenRegistry } from '@/lib/token-registry';
+import { verifyAuth, unauthorized } from '@/lib/auth';
 
 const hederaConfigured = !!(
   process.env.HEDERA_OPERATOR_ID &&
   process.env.HEDERA_OPERATOR_KEY
 );
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await verifyAuth(req);
+  if (!auth.authenticated) return unauthorized(auth.error);
+
   if (!hederaConfigured) {
     return NextResponse.json({ holdings: [], source: 'not_configured' });
   }

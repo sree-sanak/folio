@@ -25,6 +25,8 @@ describe('lithic mock mode', () => {
     expect(result.card!.expYear).toBe('2030');
     expect(result.card!.state).toBe('OPEN');
     expect(result.card!.spendLimit).toBe(5000);
+    expect(result.card!.spendLimitDuration).toBe('FOREVER');
+    expect(result.card!.totalSpent).toBe(0);
     expect(result.card!.token).toMatch(/^mock-card-/);
   });
 
@@ -52,5 +54,72 @@ describe('lithic mock mode', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toBeDefined();
+  });
+
+  it('freezes a mock card', async () => {
+    process.env.LITHIC_MOCK = 'true';
+
+    jest.resetModules();
+    const { issueVirtualCard, freezeCard } = await import('../lithic');
+
+    const issued = await issueVirtualCard(5000);
+    expect(issued.card!.state).toBe('OPEN');
+
+    const frozen = await freezeCard(issued.card!.token);
+    expect(frozen.success).toBe(true);
+    expect(frozen.card!.state).toBe('PAUSED');
+  });
+
+  it('unfreezes a frozen mock card', async () => {
+    process.env.LITHIC_MOCK = 'true';
+
+    jest.resetModules();
+    const { issueVirtualCard, freezeCard, unfreezeCard } = await import('../lithic');
+
+    const issued = await issueVirtualCard(5000);
+    await freezeCard(issued.card!.token);
+
+    const unfrozen = await unfreezeCard(issued.card!.token);
+    expect(unfrozen.success).toBe(true);
+    expect(unfrozen.card!.state).toBe('OPEN');
+  });
+
+  it('updates spend limit on a mock card', async () => {
+    process.env.LITHIC_MOCK = 'true';
+
+    jest.resetModules();
+    const { issueVirtualCard, updateSpendLimit } = await import('../lithic');
+
+    const issued = await issueVirtualCard(5000);
+    expect(issued.card!.spendLimit).toBe(5000);
+
+    const updated = await updateSpendLimit(issued.card!.token, 10000);
+    expect(updated.success).toBe(true);
+    expect(updated.card!.spendLimit).toBe(10000);
+  });
+
+  it('returns error when freezing non-existent card in mock mode', async () => {
+    process.env.LITHIC_MOCK = 'true';
+
+    jest.resetModules();
+    const { freezeCard } = await import('../lithic');
+
+    const result = await freezeCard('non-existent-token');
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Card not found');
+  });
+
+  it('retrieves existing mock card details', async () => {
+    process.env.LITHIC_MOCK = 'true';
+
+    jest.resetModules();
+    const { issueVirtualCard, getCardDetails } = await import('../lithic');
+
+    const issued = await issueVirtualCard(3000);
+    const details = await getCardDetails(issued.card!.token);
+
+    expect(details.success).toBe(true);
+    expect(details.card!.token).toBe(issued.card!.token);
+    expect(details.card!.spendLimit).toBe(3000);
   });
 });

@@ -8,6 +8,7 @@ interface CardResultProps {
   result: SpendResult;
   onViewNote?: () => void;
   onViewCards: () => void;
+  onViewCardDetail: () => void;
   onDone: () => void;
 }
 
@@ -16,9 +17,10 @@ function formatPan(pan: string): string {
   return clean.replace(/(.{4})/g, '$1 ').trim();
 }
 
-export default function CardResult({ result, onViewNote, onViewCards, onDone }: CardResultProps) {
+export default function CardResult({ result, onViewNote, onViewCards, onViewCardDetail, onDone }: CardResultProps) {
   const [copied, setCopied] = useState(false);
   const [showCvv, setShowCvv] = useState(false);
+  const [showPan, setShowPan] = useState(false);
 
   const card = result.card;
   const pan = card?.pan || '4000001234567890';
@@ -36,6 +38,8 @@ export default function CardResult({ result, onViewNote, onViewCards, onDone }: 
     }
   };
 
+  const maskedPan = `•••• •••• •••• ${pan.slice(-4)}`;
+
   return (
     <div className="text-center pt-6">
       {/* Success Badge */}
@@ -48,30 +52,31 @@ export default function CardResult({ result, onViewNote, onViewCards, onDone }: 
 
       <div className="text-[22px] font-bold mb-1">Your card is ready</div>
       <div className="text-[14px] mb-8" style={{ color: 'var(--text-secondary)' }}>
-        {formatUsd(result.amount)} from your {result.symbol} shares
+        {formatUsd(result.amount)} prepaid from your {result.symbol} shares
       </div>
 
       {/* Virtual Card */}
       <div
         className="rounded-2xl p-6 text-left mx-auto mb-8 relative overflow-hidden flex flex-col justify-between"
         style={{
-          background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)',
+          background: 'linear-gradient(135deg, #0C0C0E 0%, #161618 40%, #1E1E21 100%)',
           maxWidth: 360,
           aspectRatio: '1.586',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.2)',
+          border: '1px solid var(--border)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3), 0 0 0 1px rgba(16,185,129,0.06)',
         }}
       >
         {/* Card shine */}
         <div className="absolute top-0 left-0 w-full h-full pointer-events-none"
-          style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 50%, rgba(255,255,255,0.03) 100%)' }} />
+          style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 50%, rgba(255,255,255,0.02) 100%)' }} />
 
         {/* Top row: Folio + Visa */}
         <div className="relative flex justify-between items-start">
           <div>
-            <div className="text-[16px] font-bold text-white tracking-wide">Folio</div>
-            <div className="text-[10px] text-white/40 uppercase tracking-widest mt-0.5">Virtual Card</div>
+            <div className="text-[16px] font-bold tracking-wide" style={{ color: 'var(--text-primary)' }}>Folio</div>
+            <div className="text-[10px] uppercase tracking-widest mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Prepaid Card</div>
           </div>
-          <div className="text-[14px] font-bold text-white/60 italic tracking-wider">VISA</div>
+          <div className="text-[14px] font-bold italic tracking-wider" style={{ color: 'rgba(245,245,247,0.4)' }}>VISA</div>
         </div>
 
         {/* Chip */}
@@ -82,40 +87,42 @@ export default function CardResult({ result, onViewNote, onViewCards, onDone }: 
           }} />
         </div>
 
-        {/* Card Number */}
+        {/* Card Number — tap to reveal */}
         <button
-          onClick={handleCopy}
+          onClick={() => setShowPan(!showPan)}
           className="relative mt-4 text-left cursor-pointer group"
-          title="Copy card number"
+          title={showPan ? 'Tap to mask' : 'Tap to reveal'}
         >
-          <div className="text-[20px] font-mono font-medium text-white tracking-[0.15em] transition-opacity group-hover:opacity-80">
-            {formatPan(pan)}
+          <div className="text-[20px] font-mono font-medium tracking-[0.15em] transition-opacity group-hover:opacity-80"
+            style={{ color: 'var(--text-primary)' }}>
+            {showPan ? formatPan(pan) : maskedPan}
           </div>
-          {copied && (
-            <span className="text-[11px] text-white/50 mt-1 block">Copied!</span>
-          )}
+          <span className="text-[10px] mt-1 block" style={{ color: 'var(--text-tertiary)' }}>
+            {showPan ? 'Tap to mask' : 'Tap to reveal'}
+          </span>
         </button>
 
         {/* Bottom row: Expiry + CVV + Amount */}
         <div className="relative flex justify-between items-end mt-4">
           <div className="flex gap-6">
             <div>
-              <div className="text-[9px] text-white/30 uppercase tracking-wider">Expires</div>
-              <div className="text-[14px] font-mono text-white/90">{expMonth}/{expYear.slice(-2)}</div>
+              <div className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Expires</div>
+              <div className="text-[14px] font-mono" style={{ color: 'rgba(245,245,247,0.9)' }}>{expMonth}/{expYear.slice(-2)}</div>
             </div>
             <div>
-              <div className="text-[9px] text-white/30 uppercase tracking-wider">CVV</div>
+              <div className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>CVV</div>
               <button
                 onClick={() => setShowCvv(!showCvv)}
-                className="text-[14px] font-mono text-white/90 cursor-pointer"
+                className="text-[14px] font-mono cursor-pointer"
+                style={{ color: 'rgba(245,245,247,0.9)' }}
               >
                 {showCvv ? cvv : '•••'}
               </button>
             </div>
           </div>
           <div className="text-right">
-            <div className="text-[9px] text-white/30 uppercase tracking-wider">Balance</div>
-            <div className="text-[18px] font-bold text-white" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            <div className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Balance</div>
+            <div className="text-[18px] font-bold" style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
               {formatUsd(result.amount)}
             </div>
           </div>
@@ -126,6 +133,7 @@ export default function CardResult({ result, onViewNote, onViewCards, onDone }: 
       <div className="card p-5 text-left mb-6">
         <div className="flex flex-col gap-3">
           {[
+            { label: 'Type', value: 'Prepaid Visa' },
             { label: 'Collateral', value: `${formatShares(result.shares)} ${result.symbol}` },
             { label: 'Interest', value: '0%', accent: true },
             { label: 'Fees', value: '$0', accent: true },
@@ -159,8 +167,8 @@ export default function CardResult({ result, onViewNote, onViewCards, onDone }: 
         <button onClick={handleCopy} className="btn-primary w-full py-4 text-[15px]">
           {copied ? 'Copied!' : 'Copy Card Number'}
         </button>
-        <button onClick={onViewCards} className="btn-secondary w-full py-4 text-[15px]">
-          View All Cards
+        <button onClick={onViewCardDetail} className="btn-secondary w-full py-4 text-[15px]">
+          View Card Details
         </button>
         <button onClick={onDone} className="text-[14px] font-medium py-3 cursor-pointer"
           style={{ color: 'var(--text-tertiary)' }}>

@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser, storeEncryptedKey } from '@/lib/user-registry';
+import { verifyAuth, unauthorized } from '@/lib/auth';
 
 // GET — fetch encrypted key blob for recovery on new device
 export async function GET(req: NextRequest) {
+  const auth = await verifyAuth(req);
+  if (!auth.authenticated) return unauthorized(auth.error);
+
   const email = req.nextUrl.searchParams.get('email');
   if (!email) {
     return NextResponse.json({ error: 'email required' }, { status: 400 });
@@ -27,6 +31,9 @@ export async function GET(req: NextRequest) {
 
 // POST — store encrypted key after registration or passphrase setup
 export async function POST(req: NextRequest) {
+  const postAuth = await verifyAuth(req);
+  if (!postAuth.authenticated) return unauthorized(postAuth.error);
+
   try {
     const { email, encryptedKey, keySalt, keyIv } = await req.json();
 

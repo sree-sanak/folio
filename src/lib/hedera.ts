@@ -169,6 +169,26 @@ export async function mintSpendNote(metadata: Uint8Array): Promise<number> {
   return receipt.serials[0].toNumber();
 }
 
+// Mint additional supply of a fungible token (operator must be supply key)
+export async function mintFungibleToken(
+  tokenId: string,
+  amount: number
+): Promise<string> {
+  const client = getClient();
+  const operatorKey = getOperatorKey();
+
+  const tx = new TokenMintTransaction()
+    .setTokenId(TokenId.fromString(tokenId))
+    .setAmount(amount)
+    .freezeWith(client);
+
+  const signed = await tx.sign(operatorKey);
+  const response = await signed.execute(client);
+  await response.getReceipt(client);
+
+  return response.transactionId.toString();
+}
+
 // Transfer fungible tokens (used for escrow lock + USDC advance)
 export async function transferToken(
   tokenId: string,

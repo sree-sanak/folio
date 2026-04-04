@@ -166,7 +166,7 @@ describe('GET /api/plaid/holdings', () => {
     GET = route.GET;
   });
 
-  it('returns mapped holdings array', async () => {
+  it('returns mapped holdings array using auth email', async () => {
     const { plaidClient: client, getAccessToken: mockGet } = require('../plaid');
     (mockGet as jest.Mock).mockResolvedValue('access-token');
     (client.investmentsHoldingsGet as jest.Mock).mockResolvedValue({
@@ -182,11 +182,12 @@ describe('GET /api/plaid/holdings', () => {
       },
     });
 
-    const req = mockRequest({ searchParams: { userId: 'user-1' } });
+    const req = mockRequest();
     const res = await GET(req);
     const data = await res.json();
 
     expect(res.status).toBe(200);
+    expect(mockGet).toHaveBeenCalledWith('test@example.com');
     expect(data.holdings).toHaveLength(2);
     expect(data.holdings[0]).toMatchObject({
       symbol: 'AAPL',
@@ -200,7 +201,7 @@ describe('GET /api/plaid/holdings', () => {
     const { getAccessToken: mockGet } = require('../plaid');
     (mockGet as jest.Mock).mockResolvedValue(undefined);
 
-    const req = mockRequest({ searchParams: { userId: 'user-1' } });
+    const req = mockRequest();
     const res = await GET(req);
     const data = await res.json();
 
@@ -215,7 +216,7 @@ describe('GET /api/plaid/holdings', () => {
       data: { holdings: [], securities: [] },
     });
 
-    const req = mockRequest({ searchParams: { userId: 'user-1' } });
+    const req = mockRequest();
     const res = await GET(req);
     const data = await res.json();
 
@@ -228,7 +229,7 @@ describe('GET /api/plaid/holdings', () => {
     (mockGet as jest.Mock).mockResolvedValue('access-token');
     (client.investmentsHoldingsGet as jest.Mock).mockRejectedValue(new Error('API error'));
 
-    const req = mockRequest({ searchParams: { userId: 'user-1' } });
+    const req = mockRequest();
     const res = await GET(req);
 
     expect(res.status).toBe(500);

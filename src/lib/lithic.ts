@@ -1,9 +1,10 @@
-// Lithic API client — virtual card issuing
-// Sandbox: one POST creates a card with PAN, CVV, expiry
+// Lithic API client — prepaid virtual card issuing & management
 // Docs: https://docs.lithic.com
 
 const LITHIC_SANDBOX_URL = 'https://sandbox.lithic.com/v1';
 const LITHIC_PROD_URL = 'https://api.lithic.com/v1';
+
+export type CardState = 'OPEN' | 'PAUSED' | 'CLOSED';
 
 export interface VirtualCard {
   token: string;
@@ -12,9 +13,12 @@ export interface VirtualCard {
   expMonth: string;
   expYear: string;
   lastFour: string;
-  state: string;
+  state: CardState;
   spendLimit: number;
+  spendLimitDuration: 'TRANSACTION' | 'MONTHLY' | 'ANNUALLY' | 'FOREVER';
+  totalSpent: number;
   created: string;
+  memo: string;
 }
 
 export interface CardResult {
@@ -34,40 +38,63 @@ function headers(): Record<string, string> {
   };
 }
 
-function mockCard(amountCents: number): CardResult {
+// In-memory mock card store for freeze/unfreeze and top-up in mock mode
+const mockCards = new Map<string, VirtualCard>();
+
+function mockCard(amountCents: number, memo?: string): CardResult {
   const ts = Date.now().toString();
   const mockPan = `4000 0012 ${ts.slice(-4)} ${ts.slice(-8, -4)}`;
+  const card: VirtualCard = {
+    token: `mock-card-${ts}`,
+    pan: mockPan.replace(/ /g, ''),
+    cvv: '123',
+    expMonth: '12',
+    expYear: '2030',
+    lastFour: ts.slice(-4),
+    state: 'OPEN',
+    spendLimit: amountCents,
+    spendLimitDuration: 'FOREVER',
+    totalSpent: 0,
+    created: new Date().toISOString(),
+    memo: memo || `Folio Card · $${(amountCents / 100).toFixed(2)}`,
+  };
+  mockCards.set(card.token, card);
+  return { success: true, card };
+}
+
+function parseCard(data: Record<string, unknown>): VirtualCard {
   return {
-    success: true,
-    card: {
-      token: `mock-card-${ts}`,
-      pan: mockPan.replace(/ /g, ''),
-      cvv: '123',
-      expMonth: '12',
-      expYear: '2030',
-      lastFour: ts.slice(-4),
-      state: 'OPEN',
-      spendLimit: amountCents,
-      created: new Date().toISOString(),
-    },
+    token: data.token as string,
+    pan: data.pan as string,
+    cvv: data.cvv as string,
+    expMonth: data.exp_month as string,
+    expYear: data.exp_year as string,
+    lastFour: data.last_four as string,
+    state: data.state as CardState,
+    spendLimit: data.spend_limit as number,
+    spendLimitDuration: (data.spend_limit_duration as VirtualCard['spendLimitDuration']) || 'FOREVER',
+    totalSpent: (data.total_spend as number) || 0,
+    created: data.created as string,
+    memo: (data.memo as string) || '',
   };
 }
 
-// Issue a virtual card with a spend limit matching the advance amount
+// Issue a reusable prepaid virtual card
 export async function issueVirtualCard(amountCents: number): Promise<CardResult> {
   if (isMockMode) {
     return mockCard(amountCents);
   }
 
   try {
+    const memo = `Folio Card · $${(amountCents / 100).toFixed(2)}`;
     const res = await fetch(`${baseUrl}/cards`, {
       method: 'POST',
       headers: headers(),
       body: JSON.stringify({
-        type: 'SINGLE_USE',
+        type: 'UNLOCKED',
         spend_limit: amountCents,
-        spend_limit_duration: 'TRANSACTION',
-        memo: `Folio advance — $${(amountCents / 100).toFixed(2)}`,
+        spend_limit_duration: 'FOREVER',
+        memo,
       }),
     });
 
@@ -77,21 +104,7 @@ export async function issueVirtualCard(amountCents: number): Promise<CardResult>
     }
 
     const data = await res.json();
-
-    return {
-      success: true,
-      card: {
-        token: data.token,
-        pan: data.pan,
-        cvv: data.cvv,
-        expMonth: data.exp_month,
-        expYear: data.exp_year,
-        lastFour: data.last_four,
-        state: data.state,
-        spendLimit: data.spend_limit,
-        created: data.created,
-      },
-    };
+    return { success: true, card: parseCard(data) };
   } catch (error) {
     console.error('Lithic card creation failed:', error);
     return {
@@ -101,9 +114,11 @@ export async function issueVirtualCard(amountCents: number): Promise<CardResult>
   }
 }
 
-// Retrieve card details (PAN, CVV) by token — sandbox only
+// Retrieve card details (PAN, CVV) by token
 export async function getCardDetails(cardToken: string): Promise<CardResult> {
   if (isMockMode) {
+    const existing = mockCards.get(cardToken);
+    if (existing) return { success: true, card: existing };
     return mockCard(0);
   }
 
@@ -117,23 +132,114 @@ export async function getCardDetails(cardToken: string): Promise<CardResult> {
     }
 
     const data = await res.json();
-
-    return {
-      success: true,
-      card: {
-        token: data.token,
-        pan: data.pan,
-        cvv: data.cvv,
-        expMonth: data.exp_month,
-        expYear: data.exp_year,
-        lastFour: data.last_four,
-        state: data.state,
-        spendLimit: data.spend_limit,
-        created: data.created,
-      },
-    };
+    return { success: true, card: parseCard(data) };
   } catch (error) {
     console.error('Lithic card fetch failed:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown Lithic error',
+    };
+  }
+}
+
+// Freeze a card (PAUSED state — can be unfrozen)
+export async function freezeCard(cardToken: string): Promise<CardResult> {
+  if (isMockMode) {
+    const existing = mockCards.get(cardToken);
+    if (existing) {
+      existing.state = 'PAUSED';
+      return { success: true, card: existing };
+    }
+    return { success: false, error: 'Card not found' };
+  }
+
+  try {
+    const res = await fetch(`${baseUrl}/cards/${cardToken}`, {
+      method: 'PATCH',
+      headers: headers(),
+      body: JSON.stringify({ state: 'PAUSED' }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(`Lithic freeze failed: ${res.status} ${JSON.stringify(err)}`);
+    }
+
+    const data = await res.json();
+    return { success: true, card: parseCard(data) };
+  } catch (error) {
+    console.error('Lithic freeze failed:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown Lithic error',
+    };
+  }
+}
+
+// Unfreeze a card (back to OPEN state)
+export async function unfreezeCard(cardToken: string): Promise<CardResult> {
+  if (isMockMode) {
+    const existing = mockCards.get(cardToken);
+    if (existing) {
+      existing.state = 'OPEN';
+      return { success: true, card: existing };
+    }
+    return { success: false, error: 'Card not found' };
+  }
+
+  try {
+    const res = await fetch(`${baseUrl}/cards/${cardToken}`, {
+      method: 'PATCH',
+      headers: headers(),
+      body: JSON.stringify({ state: 'OPEN' }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(`Lithic unfreeze failed: ${res.status} ${JSON.stringify(err)}`);
+    }
+
+    const data = await res.json();
+    return { success: true, card: parseCard(data) };
+  } catch (error) {
+    console.error('Lithic unfreeze failed:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown Lithic error',
+    };
+  }
+}
+
+// Update spending limit (top-up or reduce)
+export async function updateSpendLimit(cardToken: string, newLimitCents: number): Promise<CardResult> {
+  if (isMockMode) {
+    const existing = mockCards.get(cardToken);
+    if (existing) {
+      existing.spendLimit = newLimitCents;
+      return { success: true, card: existing };
+    }
+    return { success: false, error: 'Card not found' };
+  }
+
+  try {
+    const res = await fetch(`${baseUrl}/cards/${cardToken}`, {
+      method: 'PATCH',
+      headers: headers(),
+      body: JSON.stringify({
+        spend_limit: newLimitCents,
+        spend_limit_duration: 'FOREVER',
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(`Lithic limit update failed: ${res.status} ${JSON.stringify(err)}`);
+    }
+
+    const data = await res.json();
+    return { success: true, card: parseCard(data) };
+  } catch (error) {
+    console.error('Lithic limit update failed:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown Lithic error',

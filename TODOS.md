@@ -8,12 +8,13 @@
 **Effort:** Human ~6 hours / CC ~1 hour
 **Depends on:** Core demo complete and stable.
 
-## Post-Hackathon: Persistent Plaid Token Storage (P2, M)
-**What:** Replace in-memory Plaid access token store with encrypted database storage (e.g., Supabase, Postgres). Add token rotation and per-user isolation.
-**Why:** Current in-memory store loses all Plaid connections on server restart. In production with real users, this means everyone has to re-link their brokerage every deploy. Also, access tokens are bearer credentials to brokerage accounts — they must be encrypted at rest.
-**Risk:** Low. Standard database CRUD. Main decision is encryption approach (application-level vs database-level).
-**Effort:** Human ~4 hours / CC ~20 min
-**Depends on:** Plaid production access approved. Database setup.
+## Post-Hackathon: Encrypt Plaid Tokens at Rest (P2, M)
+**What:** Add encryption for Plaid access tokens stored in `plaid_tokens` table. Add token rotation.
+**Why:** Access tokens are bearer credentials to brokerage accounts. Currently stored as plaintext in Supabase. Must be encrypted at rest for production.
+**Risk:** Low. Main decision is encryption approach (application-level vs database-level).
+**Effort:** Human ~2 hours / CC ~10 min
+**Depends on:** Plaid production access approved.
+**Note:** Persistent storage (Supabase `plaid_tokens` table) and per-user isolation (keyed by auth email) were completed in v0.2.3.0.
 
 ## Post-Hackathon: Server-Side Spend Locking (P3, S)
 **What:** Add per-user mutex/lock in the spend API route to prevent concurrent spend requests from double-locking the same TSLA shares.

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStockPrice } from '@/lib/price';
-import { addNote } from '@/lib/store';
+import { addNote } from '@/lib/spend-notes';
 import { issueVirtualCard } from '@/lib/lithic';
 import { getTokenIdForSymbol } from '@/lib/token-registry';
 import { verifyAuth, unauthorized } from '@/lib/auth';
@@ -9,6 +9,12 @@ import { optimizeCollar, calculateOptimizedCollar } from '@/lib/ai-collar-optimi
 const hederaConfigured = !!(
   process.env.HEDERA_OPERATOR_ID &&
   process.env.HEDERA_OPERATOR_KEY
+);
+
+const dynamicServerConfigured = !!(
+  process.env.DYNAMIC_ENVIRONMENT_ID &&
+  process.env.DYNAMIC_API_TOKEN &&
+  process.env.DYNAMIC_SERVER_WALLET_ID
 );
 
 export async function POST(req: NextRequest) {
@@ -62,10 +68,20 @@ export async function POST(req: NextRequest) {
 
     const stockTokenId = getTokenIdForSymbol(symbol);
     if (hederaConfigured && stockTokenId) {
-      const { submitSignedTransaction, transferToken, mintSpendNoteWithIpfs, transferNft, getOperatorId, submitAuditMessage } = await import('@/lib/hedera');
+      const { submitSignedTransaction, transferToken, mintSpendNoteWithIpfs, transferNft, getOperatorId, submitAuditMessage, getTokenBalances } = await import('@/lib/hedera');
       const operatorId = getOperatorId().toString();
       const usdcTokenId = process.env.USDC_TEST_TOKEN_ID!;
       const noteTokenId = process.env.SPEND_NOTE_TOKEN_ID!;
+
+      // Pre-flight: verify treasury has enough USDC before proceeding
+      const treasuryBalances = await getTokenBalances(operatorId);
+      const treasuryUsdc = treasuryBalances.get(usdcTokenId) ?? 0;
+      if (treasuryUsdc < collar.advanceHts) {
+        return NextResponse.json(
+          { error: 'Treasury has insufficient USDC balance. Please try a smaller amount or try again later.' },
+          { status: 503 }
+        );
+      }
 
       // Submit client-signed collateral lock (server adds operator co-signature)
       if (signedCollateralTxBytes) {
@@ -122,6 +138,34 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // EVM settlement via Dynamic server wallet (cross-chain USDC disbursement)
+    let evmTxHash: string | undefined;
+    let evmWalletAddress: string | undefined;
+
+    if (dynamicServerConfigured) {
+      try {
+        const { getUser } = await import('@/lib/user-registry');
+        const userRecord = await getUser(auth.email);
+        if (userRecord?.evmWalletAddress) {
+          evmWalletAddress = userRecord.evmWalletAddress;
+          const { serverWalletSignTransaction } = await import('@/lib/dynamic-server');
+          // Sign EVM USDC transfer from platform treasury to user's embedded wallet
+          evmTxHash = await serverWalletSignTransaction(
+            process.env.DYNAMIC_SERVER_WALLET_ID!,
+            {
+              to: userRecord.evmWalletAddress,
+              value: '0',
+              data: '0x', // In production: encode ERC-20 transfer call
+              chainId: 84532, // Base Sepolia
+            }
+          );
+        }
+      } catch (evmErr) {
+        // EVM settlement is non-blocking — Hedera collateral is the primary flow
+        console.error('EVM settlement failed (non-blocking):', evmErr);
+      }
+    }
+
     // Issue virtual card via Lithic
     let cardPan: string | undefined;
     let cardCvv: string | undefined;
@@ -129,6 +173,9 @@ export async function POST(req: NextRequest) {
     let cardExpYear: string | undefined;
     let cardToken: string | undefined;
     let cardLastFour: string | undefined;
+
+    let cardState: string | undefined;
+    let cardSpendLimit: number | undefined;
 
     if (issueCard) {
       const amountCents = Math.round(amount * 100);
@@ -140,13 +187,15 @@ export async function POST(req: NextRequest) {
         cardExpYear = result.card.expYear;
         cardToken = result.card.token;
         cardLastFour = result.card.lastFour;
+        cardState = result.card.state;
+        cardSpendLimit = result.card.spendLimit;
       }
     }
 
-    const note = addNote({
+    const note = await addNote({
       symbol,
       serial: hederaConfigured ? 1 : Date.now(),
-      recipient: recipientAccountId || userAccountId || 'demo-user',
+      recipient: recipientAccountId || userAccountId || 'unknown',
       recipientName: recipientAccountId || 'Virtual Card',
       amount: collar.advance,
       shares: collar.shares,
@@ -159,10 +208,12 @@ export async function POST(req: NextRequest) {
       status: 'active',
       txId,
       createdAt: new Date().toISOString(),
-      userAccountId: userAccountId || 'demo-user',
+      userAccountId: userAccountId || '',
       recipientAccountId: recipientAccountId || undefined,
       cardToken,
       cardLastFour,
+      cardState: (cardState as 'OPEN' | 'PAUSED' | 'CLOSED') || undefined,
+      cardSpendLimit,
     });
 
     return NextResponse.json({
@@ -192,6 +243,12 @@ export async function POST(req: NextRequest) {
         expYear: cardExpYear,
         lastFour: cardLastFour,
         token: cardToken,
+      } : undefined,
+      evm: evmTxHash ? {
+        txHash: evmTxHash,
+        walletAddress: evmWalletAddress,
+        chain: 'Base Sepolia',
+        chainId: 84532,
       } : undefined,
     });
   } catch (error) {

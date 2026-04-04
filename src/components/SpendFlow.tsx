@@ -21,7 +21,7 @@ interface SpendFlowProps {
 }
 
 export default function SpendFlow({ mode, selectedHolding, holdings, prices, currentUserAccountId, onBack, onComplete }: SpendFlowProps) {
-  const [amount, setAmount] = useState('50');
+  const [amount, setAmount] = useState('');
   const [sending, setSending] = useState(false);
   const [sendStatus, setSendStatus] = useState<'idle' | 'preparing' | 'signing' | 'submitting'>('idle');
   const [sendError, setSendError] = useState('');
@@ -36,6 +36,10 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
   const verifyTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const [durationMonths, setDurationMonths] = useState(1);
+
+  // AI collar optimizer state
+  const [aiCollar, setAiCollar] = useState<{ floorPct: number; capPct: number; durationMonths: number; confidence: number; reasoning: string; riskLevel: string; warnings: string[] } | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const isValidAccountId = /^0\.0\.\d{1,10}$/.test(recipientInput.trim());
   const hasRecipient = mode === 'card' || !!recipientAccountId;
@@ -97,6 +101,45 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
     return () => clearTimeout(verifyTimeout.current);
   }, [recipientInput, mode, recipientAccountId, isValidAccountId, currentUserAccountId]);
 
+  // Debounced AI collar optimization — non-blocking enhancement
+  useEffect(() => {
+    const val = parseFloat(amount) || 0;
+    if (!val || !currentHolding.symbol) {
+      setAiCollar(null);
+      return;
+    }
+
+    setAiLoading(true);
+    setAiCollar(null);
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const res = await authFetch('/api/ai/optimize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbol: currentHolding.symbol, amount: val, durationMonths }),
+          signal: controller.signal,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.recommendation) {
+            setAiCollar(data.recommendation);
+          }
+        }
+      } catch {
+        // Silent degradation — AI optimization is non-blocking
+      } finally {
+        setAiLoading(false);
+      }
+    }, 500);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+      setAiLoading(false);
+    };
+  }, [amount, currentHolding.symbol, durationMonths]);
+
   const spendableHoldings = holdings.filter((h) => h.shares > 0);
 
   const { symbol, name: stockName, shares: totalShares, icon: stockIcon, gradient: stockGradient } = currentHolding;
@@ -106,6 +149,10 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
   const val = parseFloat(amount) || 0;
   const maxSpend = totalShares * stockPrice;
   const collar = calculateCollar(val, stockPrice || 225, durationMonths);
+
+  // Prefer AI-optimized collar values when available, fall back to static
+  const effectiveFloor = aiCollar ? (stockPrice || 225) * (1 - aiCollar.floorPct) : collar.floor;
+  const effectiveCap = aiCollar ? (stockPrice || 225) * (1 + aiCollar.capPct) : collar.cap;
 
   const handleSend = async () => {
     if (val <= 0 || val > maxSpend) return;
@@ -122,7 +169,7 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
           amount: val,
           symbol,
           durationMonths,
-          userAccountId: currentUserAccountId || 'demo-user',
+          userAccountId: currentUserAccountId || '',
         }),
       });
 
@@ -152,7 +199,7 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
           durationMonths,
           issueCard: mode === 'card',
           recipientAccountId: mode === 'send' ? resolvedRecipientId : undefined,
-          userAccountId: currentUserAccountId || 'demo-user',
+          userAccountId: currentUserAccountId || '',
         }),
       });
 
@@ -174,6 +221,7 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
         card: data.card,
         recipientName: mode === 'send' ? (recipientName || resolvedRecipientId) : undefined,
         recipientAccountId: mode === 'send' ? resolvedRecipientId : undefined,
+        ai: data.ai,
       });
     } catch (err) {
       setSendError(err instanceof Error ? err.message : 'Something went wrong');
@@ -185,6 +233,8 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
 
   return (
     <div className="space-y-8">
+      {/* Shimmer animation for AI loading indicator */}
+      <style>{`@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
       {/* Header */}
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="p-2 rounded-lg cursor-pointer transition-colors"
@@ -284,7 +334,8 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
             type="text"
             value={amount}
             onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
-            className="text-5xl font-bold text-center bg-transparent border-none outline-none w-48"
+            placeholder="0"
+            className="text-5xl font-bold text-center bg-transparent border-none outline-none w-48 placeholder:text-[var(--text-tertiary)]"
             style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', caretColor: 'var(--accent)' }}
             inputMode="decimal"
           />
@@ -408,14 +459,31 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
               );
             })}
           </div>
+          {aiCollar && aiCollar.durationMonths !== durationMonths && (
+            <p style={{ color: '#71717A', fontSize: '12px', marginTop: '4px' }}>
+              AI suggests {aiCollar.durationMonths} month{aiCollar.durationMonths > 1 ? 's' : ''} (lower volatility risk)
+            </p>
+          )}
         </div>
 
         {/* Collateral */}
-        <div className="flex justify-between py-4 text-[13px]" style={{ borderTop: '1px solid var(--border)' }}>
-          <span style={{ color: 'var(--text-tertiary)' }}>Collateral</span>
-          <span className="font-medium" style={{ color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-            {formatShares(collar.shares)} {symbol} ({formatUsd(collar.collateralValue)})
-          </span>
+        <div aria-live="polite">
+          <div className="flex justify-between py-4 text-[13px]" style={{ borderTop: '1px solid var(--border)' }}>
+            <span style={{ color: 'var(--text-tertiary)' }}>Collateral</span>
+            <span className="font-medium" style={{ color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+              {formatShares(collar.shares)} {symbol} ({formatUsd(collar.collateralValue)})
+            </span>
+          </div>
+          {/* AI status indicator */}
+          {aiLoading && (
+            <div className="h-3 w-24 rounded" style={{ background: 'linear-gradient(90deg, var(--bg-elevated) 25%, var(--border) 50%, var(--bg-elevated) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+          )}
+          {!aiLoading && aiCollar && aiCollar.confidence > 0.7 && (
+            <div style={{ color: 'rgba(16,185,129,0.6)', fontSize: '12px' }}>AI-optimized</div>
+          )}
+          {!aiLoading && aiCollar && aiCollar.confidence <= 0.7 && (
+            <div style={{ color: '#71717A', fontSize: '12px' }}>Estimated</div>
+          )}
         </div>
 
         {/* Repayment Note */}
@@ -439,13 +507,30 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
           </button>
           {expandHow && (
             <div className="mt-5 pt-5" style={{ borderTop: '1px solid var(--border)' }}>
-              <CollarGraph price={stockPrice || 225} floor={collar.floor} cap={collar.cap} stockName={stockName} />
-              <div className="text-[13px] mt-4 leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-                This is a 0% interest loan backed by your {stockName} shares. We hold a small portion as collateral
-                and protect it with a zero-cost options collar (the green zone above). You get a virtual card
-                instantly. Repay anytime before the due date and your shares are released. If you don&apos;t repay,
-                the shares are sold to cover the balance.
-              </div>
+              <CollarGraph price={stockPrice || 225} floor={effectiveFloor} cap={effectiveCap} stockName={stockName} />
+              {aiCollar ? (
+                <div className="mt-4 space-y-2">
+                  <div className="text-[12px] leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+                    {aiCollar.reasoning}
+                  </div>
+                  {aiCollar.warnings.length > 0 && (
+                    <div className="space-y-1">
+                      {aiCollar.warnings.map((w, i) => (
+                        <div key={i} style={{ color: '#F59E0B', fontSize: '12px' }}>
+                          ⚠ {w}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-[13px] mt-4 leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+                  This is a 0% interest loan backed by your {stockName} shares. We hold a small portion as collateral
+                  and protect it with a zero-cost options collar (the green zone above). You get a virtual card
+                  instantly. Repay anytime before the due date and your shares are released. If you don&apos;t repay,
+                  the shares are sold to cover the balance.
+                </div>
+              )}
             </div>
           )}
         </div>

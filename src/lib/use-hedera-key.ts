@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { authFetch } from '@/lib/use-auth-fetch';
 import {
   hasKeypair,
   generateKeypair,
@@ -48,7 +49,7 @@ export function useHederaKey() {
 
     const { encryptedKey, salt, iv } = await encryptPrivateKey(privateKeyDer, passphrase);
 
-    const res = await fetch('/api/users/key', {
+    const res = await authFetch('/api/users/key', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, encryptedKey, keySalt: salt, keyIv: iv }),
@@ -62,7 +63,7 @@ export function useHederaKey() {
 
   // Recover key from Supabase encrypted backup
   const recoverKey = useCallback(async (email: string, passphrase: string) => {
-    const res = await fetch(`/api/users/key?email=${encodeURIComponent(email)}`);
+    const res = await authFetch(`/api/users/key?email=${encodeURIComponent(email)}`);
     const data = await res.json();
 
     if (!data.hasEncryptedKey) throw new Error('No encrypted key backup found');

@@ -12,6 +12,9 @@
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^2.0.38",
+    "@dynamic-labs-wallet/core": "^0.0.322",
+    "@dynamic-labs-wallet/node-evm": "^0.0.322",
+    "@dynamic-labs/ethereum": "^4.75.0",
     "@dynamic-labs/sdk-api": "^0.0.924",
     "@dynamic-labs/sdk-react-core": "^4.75.0",
     "@hashgraph/sdk": "^2.81.0",

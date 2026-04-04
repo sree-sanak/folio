@@ -8,6 +8,7 @@ import StockDetail from '@/components/StockDetail';
 import SpendFlow, { type SpendMode } from '@/components/SpendFlow';
 import Confirmation from '@/components/Confirmation';
 import CardResult from '@/components/CardResult';
+import CardDetail from '@/components/CardDetail';
 import CardsList from '@/components/CardsList';
 import NotesList from '@/components/NotesList';
 import NoteDetail from '@/components/NoteDetail';
@@ -18,7 +19,7 @@ import { useUserRegistration } from '@/lib/use-user-registration';
 import { authFetch } from '@/lib/use-auth-fetch';
 import type { Holding } from '@/lib/types';
 
-export type Screen = 'portfolio' | 'stock-detail' | 'spend' | 'confirm' | 'card-result' | 'cards' | 'notes' | 'note-detail' | 'settings';
+export type Screen = 'portfolio' | 'stock-detail' | 'spend' | 'confirm' | 'card-result' | 'card-detail' | 'cards' | 'notes' | 'note-detail' | 'settings';
 
 export interface PriceData {
   symbol: string;
@@ -49,6 +50,13 @@ export interface SpendResult {
   // P2P fields (present when send flow is used)
   recipientName?: string; // Hedera account ID of recipient
   recipientAccountId?: string;
+  // AI collar optimization details
+  ai?: {
+    confidence: number;
+    riskLevel: string;
+    reasoning: string;
+    warnings: string[];
+  };
 }
 
 export default function Home() {
@@ -77,9 +85,10 @@ export default function Home() {
   const navMap: Record<Screen, string> = {
     portfolio: 'portfolio',
     'stock-detail': 'portfolio',
-    spend: 'spend',
+    spend: spendMode === 'card' ? 'cards' : 'spend',
     confirm: 'spend',
     'card-result': 'cards',
+    'card-detail': 'cards',
     cards: 'cards',
     notes: 'notes',
     'note-detail': 'notes',
@@ -96,7 +105,7 @@ export default function Home() {
       const allSymbols = [...new Set(['TSLA', 'AAPL', ...symbols])];
       const query = allSymbols.length > 0 ? `?symbols=${allSymbols.join(',')}` : '';
 
-      const res = await fetch(`/api/price${query}`);
+      const res = await authFetch(`/api/price${query}`);
       const data = await res.json();
       setPrices(data);
     } catch {
@@ -238,7 +247,7 @@ export default function Home() {
       <Sidebar activeTab={navMap[screen]} onNavigate={(s) => setScreen(s as Screen)} />
 
       <main className="flex-1 flex justify-center pb-20 md:pb-0 main-gradient">
-        <div className="w-full max-w-[420px] px-6 py-10">
+        <div className="w-full max-w-[420px] md:max-w-[640px] px-6 py-10">
           {screen === 'portfolio' && (
             <Portfolio
               holdings={holdings}
@@ -298,15 +307,31 @@ export default function Home() {
                 setScreen('note-detail');
               }}
               onViewCards={() => setScreen('cards')}
+              onViewCardDetail={() => {
+                setSelectedNoteId(lastSpend.noteId);
+                setScreen('card-detail');
+              }}
               onDone={() => setScreen('portfolio')}
             />
           )}
+          {screen === 'card-detail' && selectedNoteId && (
+            <CardDetail
+              noteId={selectedNoteId}
+              onBack={() => setScreen('cards')}
+            />
+          )}
           {screen === 'cards' && (
-            <CardsList onGetCard={() => {
-              const first = holdings.find((h) => h.shares > 0);
-              if (first) handleSpendFromHolding(first, 'card');
-              else { setSpendMode('card'); setScreen('spend'); }
-            }} />
+            <CardsList
+              onGetCard={() => {
+                const first = holdings.find((h) => h.shares > 0);
+                if (first) handleSpendFromHolding(first, 'card');
+                else { setSpendMode('card'); setScreen('spend'); }
+              }}
+              onSelectCard={(noteId) => {
+                setSelectedNoteId(noteId);
+                setScreen('card-detail');
+              }}
+            />
           )}
           {screen === 'notes' && (
             <NotesList onSelectNote={handleViewNote} />

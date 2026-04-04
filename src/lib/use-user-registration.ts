@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
+import { useDynamicContext, useUserWallets } from '@dynamic-labs/sdk-react-core';
 import { authFetch } from '@/lib/use-auth-fetch';
 import { useHederaKey } from './use-hedera-key';
+import { getStoredPublicKey } from './hedera-keystore';
 
 export interface FolioUser {
   email: string;
@@ -26,6 +27,7 @@ type RegistrationStatus =
 
 export function useUserRegistration() {
   const { user } = useDynamicContext();
+  const userWallets = useUserWallets();
   const { hasKey, publicKeyDer, generateKey, signTransaction, encryptAndStore, recoverKey } = useHederaKey();
   const [folioUser, setFolioUser] = useState<FolioUser | null>(null);
   const [status, setStatus] = useState<RegistrationStatus>('idle');
@@ -84,6 +86,8 @@ export function useUserRegistration() {
       // Encrypt key and store in Supabase
       setStatus('encrypting-key');
       await encryptAndStore(user.email, passphrase);
+      // Cache passphrase in sessionStorage so refreshes within same tab don't re-prompt
+      try { sessionStorage.setItem('folio:passphrase-cache', passphrase); } catch { /* private browsing */ }
 
       setFolioUser(data.user);
       setStatus('done');
@@ -101,6 +105,8 @@ export function useUserRegistration() {
     try {
       setStatus('recovering-key');
       await recoverKey(user.email, passphrase);
+      // Cache passphrase in sessionStorage so refreshes within same tab don't re-prompt
+      try { sessionStorage.setItem('folio:passphrase-cache', passphrase); } catch { /* private browsing */ }
       setStatus('idle');
     } catch {
       setError('Wrong passphrase. Please try again.');
@@ -167,11 +173,39 @@ export function useUserRegistration() {
         }
 
         // No local key — check if user exists with an encrypted key backup
-        const keyRes = await fetch(`/api/users/key?email=${encodeURIComponent(user!.email!)}`);
+        const keyRes = await authFetch(`/api/users/key?email=${encodeURIComponent(user!.email!)}`);
         const keyData = await keyRes.json().catch(() => ({}));
         if (cancelled) return;
 
         if (keyData.hasEncryptedKey) {
+          // Try auto-recovery with cached passphrase (same browser session)
+          const cachedPassphrase = (() => { try { return sessionStorage.getItem('folio:passphrase-cache'); } catch { return null; } })();
+          if (cachedPassphrase) {
+            try {
+              setStatus('recovering-key');
+              await recoverKey(user!.email!, cachedPassphrase);
+              if (cancelled) return;
+              // Re-run registration with recovered key
+              const recoveredPubKey = getStoredPublicKey();
+              if (recoveredPubKey) {
+                setStatus('creating-account');
+                const regRes = await authFetch('/api/users/register', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email: user!.email, name: user!.firstName || '', publicKey: recoveredPubKey }),
+                });
+                if (regRes.ok) {
+                  const regData = await regRes.json();
+                  if (!cancelled) { setFolioUser(regData.user); setStatus('done'); }
+                  return;
+                }
+              }
+            } catch {
+              // Cached passphrase was wrong (changed?), clear it and prompt
+              try { sessionStorage.removeItem('folio:passphrase-cache'); } catch { /* */ }
+            }
+          }
+          if (cancelled) return;
           setNeedsRecovery(true);
           setStatus('needs-passphrase');
           return;
@@ -193,6 +227,24 @@ export function useUserRegistration() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.email]);
+
+  // Store EVM embedded wallet address when available (runs once per address)
+  const [storedEvmAddress, setStoredEvmAddress] = useState<string | null>(null);
+  useEffect(() => {
+    if (!user?.email || status !== 'done') return;
+    const embeddedWallet = userWallets.find(
+      (w) => w.connector?.isEmbeddedWallet === true
+    );
+    if (!embeddedWallet?.address || embeddedWallet.address === storedEvmAddress) return;
+
+    setStoredEvmAddress(embeddedWallet.address);
+    authFetch('/api/users/evm-wallet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ evmAddress: embeddedWallet.address }),
+    }).catch((err) => console.error('Failed to store EVM wallet:', err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.email, status, userWallets]);
 
   return {
     folioUser,

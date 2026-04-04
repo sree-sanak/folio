@@ -2,6 +2,7 @@
 
 import { DynamicContextProvider } from '@dynamic-labs/sdk-react-core';
 import { SdkViewSectionType, SdkViewType } from '@dynamic-labs/sdk-api';
+import { EthereumWalletConnectors } from '@dynamic-labs/ethereum';
 
 const cssOverrides = `
   .dynamic-shadow-dom {
@@ -63,7 +64,7 @@ export function DynamicProvider({ children }: { children: React.ReactNode }) {
       theme="dark"
       settings={{
         environmentId: process.env.NEXT_PUBLIC_DYNAMIC_ENV_ID ?? 'placeholder',
-        walletConnectors: [],
+        walletConnectors: [EthereumWalletConnectors],
         appName: 'Folio',
         appLogoUrl: '/logo.svg',
         overrides: {
