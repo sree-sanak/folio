@@ -2,6 +2,15 @@
 
 All notable changes to Folio will be documented in this file.
 
+## [0.2.5.1] - 2026-04-04
+
+### Changed
+- Rewrite README to lead with value proposition ("0% Loans Against Your Stocks") instead of implementation details
+- Update page metadata from "Prime Broker in Your Pocket" to "0% Loans Against Your Stocks"
+- Replace "zero-cost collar" terminology with plain-English explanation in spend flow UI
+- Change status messages from "Collar expired" to "Loan expired" for user-facing clarity
+- Add market comparison section to README (Fidelity/Schwab SBLOCs vs Folio)
+
 ## [0.2.5.0] - 2026-04-04
 
 ### Added
