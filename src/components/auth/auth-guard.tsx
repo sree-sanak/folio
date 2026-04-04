@@ -1,10 +1,19 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
 import { ConnectButton } from './connect-button';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
   const { user } = useDynamicContext();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Render children during SSR so static generation works
+  if (!mounted) return <>{children}</>;
 
   const isAuthenticated = user !== undefined && user !== null;
 

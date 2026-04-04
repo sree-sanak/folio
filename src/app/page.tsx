@@ -8,6 +8,7 @@ import SpendFlow from '@/components/SpendFlow';
 import Confirmation from '@/components/Confirmation';
 import NotesList from '@/components/NotesList';
 import NoteDetail from '@/components/NoteDetail';
+import { AuthGuard } from '@/components/auth/auth-guard';
 
 export type Screen = 'portfolio' | 'spend' | 'confirm' | 'notes' | 'note-detail';
 
@@ -73,6 +74,7 @@ export default function Home() {
   };
 
   return (
+    <AuthGuard>
     <div className="flex min-h-screen">
       <Sidebar activeTab={navMap[screen]} onNavigate={(s) => setScreen(s as Screen)} />
 
@@ -109,5 +111,6 @@ export default function Home() {
 
       <BottomNav activeTab={navMap[screen]} onNavigate={(s) => setScreen(s as Screen)} />
     </div>
+    </AuthGuard>
   );
 }

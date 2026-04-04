@@ -2,6 +2,8 @@
 
 > Goldman Sachs for everyone at 0%
 
+![Screenshot placeholder — add demo screenshot here](https://via.placeholder.com/800x450/0f1117/10B981?text=Folio+Demo)
+
 ## What it does
 
 - **Spend against your stock portfolio without selling** — tap to pay with your Tesla shares as collateral, keep your position
@@ -74,6 +76,10 @@ When you spend $50 against $225 TSLA:
 - At expiry, user repays $50 and gets their shares back
 
 The put option (bought) protects against downside. The call option (sold) caps upside but pays for the put. Net premium to the user: ~$0. Because the collar bounds the downside, the platform can never lose money on the loan — that's why it's 0%.
+
+## Team
+
+Solo build — ETHGlobal Cannes 2026, 36 hours.
 
 ## Built at
 

@@ -1,5 +1,8 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
+
 interface SidebarProps {
   activeTab: string;
   onNavigate: (screen: string) => void;
@@ -35,6 +38,16 @@ const navItems = [
 ];
 
 export default function Sidebar({ activeTab, onNavigate }: SidebarProps) {
+  const [mounted, setMounted] = useState(false);
+  const { user } = useDynamicContext();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const label = mounted ? (user?.email ?? user?.firstName ?? 'Demo User') : 'Demo User';
+  const initial = label.charAt(0).toUpperCase();
+
   return (
     <aside className="hidden md:flex flex-col w-[240px] border-r px-5 py-8 gap-1"
       style={{ background: 'var(--bg-surface)', borderColor: 'var(--border)' }}>
@@ -70,10 +83,10 @@ export default function Sidebar({ activeTab, onNavigate }: SidebarProps) {
         <div className="flex items-center gap-3 p-2 rounded-xl" style={{ background: 'var(--bg-elevated)' }}>
           <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold"
             style={{ background: 'linear-gradient(135deg, #6366F1, #8B5CF6)', color: '#fff' }}>
-            S
+            {initial}
           </div>
           <div>
-            <div className="text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>Demo User</div>
+            <div className="text-[13px] font-medium truncate max-w-[140px]" style={{ color: 'var(--text-primary)' }}>{label}</div>
             <div className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Testnet</div>
           </div>
         </div>
