@@ -168,7 +168,7 @@ export function useUserRegistration() {
         }
 
         // No local key — check if user exists with an encrypted key backup
-        const keyRes = await fetch(`/api/users/key?email=${encodeURIComponent(user!.email!)}`);
+        const keyRes = await authFetch(`/api/users/key?email=${encodeURIComponent(user!.email!)}`);
         const keyData = await keyRes.json().catch(() => ({}));
         if (cancelled) return;
 

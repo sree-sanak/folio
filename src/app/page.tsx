@@ -96,7 +96,7 @@ export default function Home() {
       const allSymbols = [...new Set(['TSLA', 'AAPL', ...symbols])];
       const query = allSymbols.length > 0 ? `?symbols=${allSymbols.join(',')}` : '';
 
-      const res = await fetch(`/api/price${query}`);
+      const res = await authFetch(`/api/price${query}`);
       const data = await res.json();
       setPrices(data);
     } catch {
