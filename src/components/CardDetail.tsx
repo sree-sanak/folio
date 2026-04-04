@@ -326,9 +326,9 @@ export default function CardDetail({ noteId, onBack }: CardDetailProps) {
       {showDetails && (
         <div className="card p-5 mb-4">
           <div className="text-[12px] leading-relaxed mb-4" style={{ color: 'var(--text-tertiary)' }}>
-            Your card is backed by {note.shares.toFixed(2)} shares of {note.symbol}. We protect
-            these shares with a zero-cost collar so your downside is limited. Pay back anytime
-            to release your shares.
+            {isActive
+              ? `Your card is backed by ${note.shares.toFixed(2)} shares of ${note.symbol}. We protect these shares with a zero-cost collar so your downside is limited. Pay back anytime to release your shares.`
+              : `This card was backed by ${note.shares.toFixed(2)} shares of ${note.symbol}, protected with a zero-cost collar.`}
           </div>
           <div className="flex flex-col gap-2.5">
             {[
