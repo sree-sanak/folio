@@ -28,5 +28,5 @@ export function holdingGradient(symbol: string): string {
 
 export const DEMO_HOLDINGS: Holding[] = [
   { symbol: 'TSLA', name: 'Tesla', shares: 44, icon: 'T', gradient: SYMBOL_GRADIENTS.TSLA },
-  { symbol: 'AAPL', name: 'Apple', shares: 0, icon: 'A', gradient: SYMBOL_GRADIENTS.AAPL },
+  { symbol: 'AAPL', name: 'Apple', shares: 10, icon: 'A', gradient: SYMBOL_GRADIENTS.AAPL },
 ];
