@@ -3,20 +3,12 @@ import { calculateCollar } from '@/lib/collar';
 import { getStockPrice } from '@/lib/price';
 import { addNote } from '@/lib/store';
 import { issueVirtualCard } from '@/lib/lithic';
+import { getTokenIdForSymbol } from '@/lib/token-registry';
 
 const hederaConfigured = !!(
   process.env.HEDERA_OPERATOR_ID &&
   process.env.HEDERA_OPERATOR_KEY
 );
-
-// Map stock symbols to their Hedera token IDs
-function getStockTokenId(symbol: string): string | undefined {
-  const map: Record<string, string | undefined> = {
-    TSLA: process.env.MOCK_TSLA_TOKEN_ID,
-    AAPL: process.env.MOCK_AAPL_TOKEN_ID,
-  };
-  return map[symbol.toUpperCase()];
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,7 +31,7 @@ export async function POST(req: NextRequest) {
 
     let txId = 'demo-tx-' + Date.now();
 
-    const stockTokenId = getStockTokenId(symbol);
+    const stockTokenId = getTokenIdForSymbol(symbol);
     if (hederaConfigured && stockTokenId) {
       // Real Hedera flow
       const { transferToken, mintSpendNoteWithIpfs, transferNft, getOperatorId } = await import('@/lib/hedera');

@@ -126,6 +126,47 @@ export default function Settings({
         )}
       </div>
 
+      {/* Tokenized Assets */}
+      <div className="card p-6">
+        <div className="text-[11px] font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-tertiary)' }}>
+          Tokenized Assets
+        </div>
+        <div className="flex items-center gap-4 mb-4">
+          <div className="w-11 h-11 rounded-full flex items-center justify-center"
+            style={{ background: 'rgba(16,185,129,0.1)' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+            </svg>
+          </div>
+          <div>
+            <div className="text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>HTS Fungible Tokens</div>
+            <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+              Equities tokenized via Hedera Token Service
+            </div>
+          </div>
+        </div>
+        <div className="space-y-2 mb-4">
+          <div className="flex items-center justify-between py-2 px-3 rounded-lg" style={{ background: 'var(--bg-surface)' }}>
+            <span className="text-[13px] font-medium">MOCK-TSLA</span>
+            <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold"
+              style={{ background: 'rgba(251,191,36,0.1)', color: '#FBBF24' }}>Testnet</span>
+          </div>
+          <div className="flex items-center justify-between py-2 px-3 rounded-lg" style={{ background: 'var(--bg-surface)' }}>
+            <span className="text-[13px] font-medium">MOCK-AAPL</span>
+            <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold"
+              style={{ background: 'rgba(251,191,36,0.1)', color: '#FBBF24' }}>Testnet</span>
+          </div>
+        </div>
+        <div className="p-3 rounded-lg" style={{ background: 'var(--bg-surface)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="text-[12px] font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>
+            Swarm Compatible
+          </div>
+          <div className="text-[11px] leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+            Token architecture uses the same HTS standard as Swarm&apos;s regulated tokenized securities (TSLA, AAPL, NVDA, MSFT). Production migration requires swapping token IDs and adding Swarm KYC onboarding.
+          </div>
+        </div>
+      </div>
+
       {/* Network */}
       <div className="card p-6">
         <div className="text-[11px] font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-tertiary)' }}>

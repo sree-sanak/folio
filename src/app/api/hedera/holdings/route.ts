@@ -1,19 +1,6 @@
 import { NextResponse } from 'next/server';
 import { holdingGradient } from '@/lib/types';
-
-// Map env-configured token IDs back to stock symbols
-function getTokenSymbolMap(): Record<string, { symbol: string; name: string }> {
-  const map: Record<string, { symbol: string; name: string }> = {};
-
-  if (process.env.MOCK_TSLA_TOKEN_ID) {
-    map[process.env.MOCK_TSLA_TOKEN_ID] = { symbol: 'TSLA', name: 'Tesla' };
-  }
-  if (process.env.MOCK_AAPL_TOKEN_ID) {
-    map[process.env.MOCK_AAPL_TOKEN_ID] = { symbol: 'AAPL', name: 'Apple' };
-  }
-
-  return map;
-}
+import { getTokenRegistry } from '@/lib/token-registry';
 
 const hederaConfigured = !!(
   process.env.HEDERA_OPERATOR_ID &&
@@ -29,20 +16,23 @@ export async function GET() {
     const { getTokenBalances, getOperatorId } = await import('@/lib/hedera');
     const operatorId = getOperatorId().toString();
     const balances = await getTokenBalances(operatorId);
-    const tokenMap = getTokenSymbolMap();
+    const registry = getTokenRegistry();
+
+    // Build lookup: tokenId -> registry entry
+    const tokenMap = new Map(registry.map((t) => [t.tokenId, t]));
 
     const holdings = Array.from(balances.entries())
-      .filter(([tokenId]) => tokenId in tokenMap)
+      .filter(([tokenId]) => tokenMap.has(tokenId))
       .map(([tokenId, rawBalance]) => {
-        const { symbol, name } = tokenMap[tokenId];
-        // Token balances are in smallest unit (6 decimals)
-        const shares = Math.floor(rawBalance / 1e6);
+        const entry = tokenMap.get(tokenId)!;
+        const shares = Math.floor(rawBalance / 10 ** entry.decimals);
         return {
-          symbol,
-          name,
+          symbol: entry.symbol,
+          name: entry.name,
           shares,
-          icon: symbol[0],
-          gradient: holdingGradient(symbol),
+          icon: entry.symbol[0],
+          gradient: holdingGradient(entry.symbol),
+          provider: entry.provider,
         };
       })
       .filter((h) => h.shares > 0);
