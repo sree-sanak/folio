@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { calculateCollar } from '@/lib/collar';
 import { getStockPrice } from '@/lib/price';
-import { transferToken, mintSpendNote, transferNft, getOperatorId } from '@/lib/hedera';
 import { addNote } from '@/lib/store';
+
+const hederaConfigured = !!(
+  process.env.HEDERA_OPERATOR_ID &&
+  process.env.HEDERA_OPERATOR_KEY &&
+  process.env.MOCK_TSLA_TOKEN_ID
+);
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,64 +23,43 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
     }
 
-    if (!userAccountId) {
-      return NextResponse.json(
-        { error: 'User account required' },
-        { status: 400 }
-      );
-    }
-
-    // Get live price
     const priceData = await getStockPrice('TSLA');
     const collar = calculateCollar(amount, priceData.price, durationMonths);
 
-    const operatorId = getOperatorId().toString();
-    const tslaTokenId = process.env.MOCK_TSLA_TOKEN_ID!;
-    const usdcTokenId = process.env.USDC_TEST_TOKEN_ID!;
-    const noteTokenId = process.env.SPEND_NOTE_TOKEN_ID!;
+    let txId = 'demo-tx-' + Date.now();
 
-    // Step 1: Lock user's TSLA shares into agent escrow
-    const lockTxId = await transferToken(
-      tslaTokenId,
-      userAccountId,
-      operatorId,
-      collar.sharesHts
-    );
+    if (hederaConfigured) {
+      // Real Hedera flow
+      const { transferToken, mintSpendNote, transferNft, getOperatorId } = await import('@/lib/hedera');
+      const operatorId = getOperatorId().toString();
+      const tslaTokenId = process.env.MOCK_TSLA_TOKEN_ID!;
+      const usdcTokenId = process.env.USDC_TEST_TOKEN_ID!;
+      const noteTokenId = process.env.SPEND_NOTE_TOKEN_ID!;
 
-    // Step 2: Send USDC from agent to user (the advance)
-    await transferToken(
-      usdcTokenId,
-      operatorId,
-      userAccountId,
-      collar.advanceHts
-    );
+      txId = await transferToken(tslaTokenId, userAccountId, operatorId, collar.sharesHts);
+      await transferToken(usdcTokenId, operatorId, userAccountId, collar.advanceHts);
 
-    // Step 3: Mint Spend Note NFT
-    const metadata = JSON.stringify({
-      name: `Spend Note #${Date.now()}`,
-      asset: 'MOCK-TSLA',
-      shares_collared: collar.sharesHts,
-      stock_price: Math.floor(priceData.price * 1e6),
-      collar_floor: Math.floor(collar.floor * 1e6),
-      collar_cap: Math.floor(collar.cap * 1e6),
-      advance_usdc: collar.advanceHts,
-      fee: 0,
-      duration_months: durationMonths,
-      expires_at: collar.expiryDate.toISOString(),
-      status: 'active',
-    });
+      const metadata = JSON.stringify({
+        name: `Spend Note #${Date.now()}`,
+        asset: 'MOCK-TSLA',
+        shares_collared: collar.sharesHts,
+        stock_price: Math.floor(priceData.price * 1e6),
+        collar_floor: Math.floor(collar.floor * 1e6),
+        collar_cap: Math.floor(collar.cap * 1e6),
+        advance_usdc: collar.advanceHts,
+        fee: 0,
+        duration_months: durationMonths,
+        expires_at: collar.expiryDate.toISOString(),
+        status: 'active',
+      });
 
-    const serial = await mintSpendNote(
-      new TextEncoder().encode(metadata)
-    );
+      const serial = await mintSpendNote(new TextEncoder().encode(metadata));
+      await transferNft(noteTokenId, serial, operatorId, userAccountId);
+    }
 
-    // Step 4: Transfer Spend Note NFT to user
-    await transferNft(noteTokenId, serial, operatorId, userAccountId);
-
-    // Step 5: Store in memory
     const note = addNote({
-      serial,
-      recipient: 'recipient-placeholder',
+      serial: hederaConfigured ? 1 : Date.now(),
+      recipient: userAccountId || 'demo-user',
       recipientName,
       amount: collar.advance,
       shares: collar.shares,
@@ -86,9 +70,9 @@ export async function POST(req: NextRequest) {
       durationMonths,
       expiryDate: collar.expiryDate.toISOString(),
       status: 'active',
-      txId: lockTxId,
+      txId,
       createdAt: new Date().toISOString(),
-      userAccountId,
+      userAccountId: userAccountId || 'demo-user',
     });
 
     return NextResponse.json({
@@ -102,7 +86,7 @@ export async function POST(req: NextRequest) {
         fee: collar.fee,
         expiryDate: collar.expiryDate.toISOString(),
       },
-      txId: lockTxId,
+      txId,
     });
   } catch (error) {
     console.error('Spend error:', error);

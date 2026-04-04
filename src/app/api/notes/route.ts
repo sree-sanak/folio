@@ -11,25 +11,26 @@ export async function GET(req: NextRequest) {
     if (!note) {
       return NextResponse.json({ error: 'Note not found' }, { status: 404 });
     }
-    return NextResponse.json(note);
+    return NextResponse.json({ notes: [note] });
   }
 
   const notes = getNotes(userAccountId ?? undefined);
-  return NextResponse.json(notes);
+  return NextResponse.json({ notes });
 }
 
 export async function PATCH(req: NextRequest) {
   const body = await req.json();
-  const { id, status } = body;
+  const noteId = body.noteId ?? body.id;
+  const { status } = body;
 
-  if (!id || !status) {
+  if (!noteId || !status) {
     return NextResponse.json(
-      { error: 'id and status required' },
+      { error: 'noteId and status required' },
       { status: 400 }
     );
   }
 
-  const note = updateNoteStatus(id, status);
+  const note = updateNoteStatus(noteId, status);
   if (!note) {
     return NextResponse.json({ error: 'Note not found' }, { status: 404 });
   }

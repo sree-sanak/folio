@@ -39,19 +39,19 @@ export default function SpendFlow({ prices, onBack, onComplete }: SpendFlowProps
         }),
       });
 
+      if (!res.ok) throw new Error('API error');
+
       const data = await res.json();
 
-      if (data.success) {
-        onComplete({
-          amount: val,
-          shares: collar.shares,
-          recipientName: 'Alex Chen',
-          durationMonths,
-          expiryDate: collar.expiryDate.toISOString(),
-          noteId: data.note.id,
-          txId: data.txId,
-        });
-      }
+      onComplete({
+        amount: val,
+        shares: collar.shares,
+        recipientName: 'Alex Chen',
+        durationMonths,
+        expiryDate: collar.expiryDate.toISOString(),
+        noteId: data.note.id,
+        txId: data.txId,
+      });
     } catch {
       onComplete({
         amount: val,

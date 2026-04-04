@@ -77,7 +77,7 @@ export default function Home() {
       <Sidebar activeTab={navMap[screen]} onNavigate={(s) => setScreen(s as Screen)} />
 
       <main className="flex-1 flex justify-center pb-20 md:pb-0 main-gradient">
-        <div className="w-full max-w-[480px] px-5 py-8">
+        <div className="w-full max-w-[480px] px-5 md:px-6 py-6 md:py-8">
           {screen === 'portfolio' && (
             <Portfolio prices={prices} onSpend={() => setScreen('spend')} onViewNotes={() => setScreen('notes')} />
           )}
