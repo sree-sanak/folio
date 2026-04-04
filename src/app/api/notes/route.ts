@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getNotes, getNote, updateNoteStatus } from '@/lib/store';
+import { verifyAuth, unauthorized } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
+  const auth = await verifyAuth(req);
+  if (!auth.authenticated) return unauthorized(auth.error);
+
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
   const userAccountId = searchParams.get('userAccountId');
@@ -19,6 +23,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const auth = await verifyAuth(req);
+  if (!auth.authenticated) return unauthorized(auth.error);
+
   const body = await req.json();
   const noteId = body.noteId ?? body.id;
   const { status } = body;
