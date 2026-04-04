@@ -15,6 +15,7 @@ import Settings from '@/components/Settings';
 import { AuthGuard } from '@/components/auth/auth-guard';
 import { usePlaidHoldings } from '@/lib/use-plaid-holdings';
 import { useUserRegistration } from '@/lib/use-user-registration';
+import { authFetch } from '@/lib/use-auth-fetch';
 import type { Holding } from '@/lib/types';
 
 export type Screen = 'portfolio' | 'stock-detail' | 'spend' | 'confirm' | 'card-result' | 'cards' | 'notes' | 'note-detail' | 'settings';
@@ -107,7 +108,7 @@ export default function Home() {
 
     async function fetchCryptoBalances() {
       try {
-        const res = await fetch(`/api/users/balances?accountId=${folioUser!.hederaAccountId}`);
+        const res = await authFetch(`/api/users/balances?accountId=${folioUser!.hederaAccountId}`);
         if (res.ok && !cancelled) {
           const data = await res.json();
           setCryptoHoldings(data.holdings || []);

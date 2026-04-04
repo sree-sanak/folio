@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
+import { authFetch } from '@/lib/use-auth-fetch';
 
 export interface FolioUser {
   email: string;
@@ -22,7 +23,7 @@ export function useUserRegistration() {
     async function register() {
       setRegistering(true);
       try {
-        const res = await fetch('/api/users/register', {
+        const res = await authFetch('/api/users/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

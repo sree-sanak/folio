@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { PriceData, SpendResult } from '@/app/page';
 import type { Holding } from '@/lib/types';
 import { calculateCollar, formatShares, formatUsd, formatDate } from '@/lib/collar';
+import { authFetch } from '@/lib/use-auth-fetch';
 import CollarGraph from '@/components/CollarGraph';
 
 export type SpendMode = 'send' | 'card';
@@ -56,7 +57,7 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
     setVerifyStatus('checking');
     verifyTimeout.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/users/search?q=${encodeURIComponent(input)}`);
+        const res = await authFetch(`/api/users/search?q=${encodeURIComponent(input)}`);
         const data = await res.json();
         const users: { email: string; name: string; hederaAccountId: string }[] = data.users || [];
 
@@ -107,7 +108,7 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
     setSending(true);
 
     try {
-      const res = await fetch('/api/spend', {
+      const res = await authFetch('/api/spend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

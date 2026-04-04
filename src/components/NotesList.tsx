@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { formatUsd, formatDate } from '@/lib/collar';
+import { authFetch } from '@/lib/use-auth-fetch';
 
 interface SpendNote {
   id: number;
@@ -24,7 +25,7 @@ export default function NotesList({ onSelectNote }: NotesListProps) {
   useEffect(() => {
     const fetchNotes = async () => {
       try {
-        const res = await fetch('/api/notes');
+        const res = await authFetch('/api/notes');
         const data = await res.json();
         setNotes(data.notes ?? []);
       } catch {

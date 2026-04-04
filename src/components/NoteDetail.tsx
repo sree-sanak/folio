@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { formatUsd, formatShares, formatDate } from '@/lib/collar';
+import { authFetch } from '@/lib/use-auth-fetch';
 
 interface SpendNote {
   id: number;
@@ -31,7 +32,7 @@ export default function NoteDetail({ noteId, onBack }: NoteDetailProps) {
   useEffect(() => {
     const fetchNote = async () => {
       try {
-        const res = await fetch('/api/notes');
+        const res = await authFetch('/api/notes');
         const data = await res.json();
         const found = (data.notes ?? []).find((n: SpendNote) => n.id === noteId);
         setNote(found ?? null);
@@ -48,7 +49,7 @@ export default function NoteDetail({ noteId, onBack }: NoteDetailProps) {
     if (!note) return;
     setRepaying(true);
     try {
-      await fetch('/api/notes', {
+      await authFetch('/api/notes', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ noteId: note.id, status: 'repaid' }),
