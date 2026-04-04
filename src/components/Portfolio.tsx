@@ -155,7 +155,7 @@ export default function Portfolio({
             ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div className="text-[13px] mt-2" style={{ color: 'var(--text-tertiary)' }}>
-            From your portfolio at 0% interest
+            Spend directly from your portfolio
           </div>
         </div>
       )}

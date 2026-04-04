@@ -15,10 +15,10 @@ interface SpendFlowProps {
 
 export default function SpendFlow({ selectedHolding, prices, onBack, onComplete }: SpendFlowProps) {
   const [amount, setAmount] = useState('50');
-  const [durationMonths, setDurationMonths] = useState(1);
-  const [recipientSelected, setRecipientSelected] = useState(true);
   const [sending, setSending] = useState(false);
   const [expandHow, setExpandHow] = useState(false);
+
+  const durationMonths = 1; // Fixed for portfolio advance
 
   const { symbol, name: stockName, shares: totalShares, icon: stockIcon, gradient: stockGradient } = selectedHolding;
 
@@ -40,7 +40,7 @@ export default function SpendFlow({ selectedHolding, prices, onBack, onComplete 
           amount: val,
           symbol,
           durationMonths,
-          recipientName: 'Alex Chen',
+          issueCard: true,
           userAccountId: 'demo-user',
         }),
       });
@@ -53,18 +53,17 @@ export default function SpendFlow({ selectedHolding, prices, onBack, onComplete 
         symbol,
         amount: val,
         shares: collar.shares,
-        recipientName: 'Alex Chen',
         durationMonths,
         expiryDate: collar.expiryDate.toISOString(),
         noteId: data.note.id,
         txId: data.txId,
+        card: data.card,
       });
     } catch {
       onComplete({
         symbol,
         amount: val,
         shares: collar.shares,
-        recipientName: 'Alex Chen',
         durationMonths,
         expiryDate: collar.expiryDate.toISOString(),
         noteId: Date.now(),
@@ -85,40 +84,8 @@ export default function SpendFlow({ selectedHolding, prices, onBack, onComplete 
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
         </button>
-        <div className="text-lg font-semibold">Send Payment</div>
+        <div className="text-lg font-semibold">Get Card</div>
       </div>
-
-      {/* Recipient */}
-      {!recipientSelected ? (
-        <div className="text-center py-8">
-          <button
-            onClick={() => setRecipientSelected(true)}
-            className="w-[76px] h-[76px] rounded-full flex items-center justify-center mx-auto mb-4 cursor-pointer transition-all"
-            style={{ background: 'var(--bg-elevated)', border: '2px dashed rgba(255,255,255,0.1)' }}
-          >
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" strokeLinecap="round">
-              <circle cx="12" cy="8" r="4" /><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" />
-            </svg>
-          </button>
-          <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>Scan QR or tap to choose recipient</div>
-        </div>
-      ) : (
-        <div className="card flex items-center gap-4 p-4">
-          <div className="w-12 h-12 rounded-full flex items-center justify-center text-base font-semibold text-white"
-            style={{ background: 'linear-gradient(135deg, #6366F1, #8B5CF6)' }}>A</div>
-          <div className="flex-1">
-            <div className="text-[15px] font-semibold">Alex Chen</div>
-            <div className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>@alexchen</div>
-          </div>
-          <button onClick={() => setRecipientSelected(false)}
-            className="p-2 rounded-lg cursor-pointer transition-colors"
-            style={{ color: 'var(--text-tertiary)' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-      )}
 
       {/* Amount Input */}
       <div>
@@ -153,7 +120,7 @@ export default function SpendFlow({ selectedHolding, prices, onBack, onComplete 
         </div>
       </div>
 
-      {/* Loan Disclosure */}
+      {/* Advance Details */}
       <div className="card p-6 space-y-5">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -162,13 +129,13 @@ export default function SpendFlow({ selectedHolding, prices, onBack, onComplete 
               <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
             </svg>
           </div>
-          <div className="text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>Pay later with your portfolio</div>
+          <div className="text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>Spend from your portfolio</div>
         </div>
 
         {/* Stat Grid */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'They get', value: formatUsd(val), color: 'var(--accent)' },
+            { label: 'Amount', value: formatUsd(val), color: 'var(--accent)' },
             { label: 'Interest', value: '0%', color: 'var(--accent)' },
             { label: 'Fees', value: '$0', color: 'var(--accent)' },
           ].map((stat) => (
@@ -183,33 +150,6 @@ export default function SpendFlow({ selectedHolding, prices, onBack, onComplete 
           ))}
         </div>
 
-        {/* Duration Picker */}
-        <div>
-          <div className="text-[11px] mb-3 uppercase tracking-wider font-medium" style={{ color: 'var(--text-tertiary)' }}>
-            Repay within
-          </div>
-          <div className="flex gap-2.5">
-            {[1, 2, 3].map((m) => {
-              const active = durationMonths === m;
-              return (
-                <button
-                  key={m}
-                  onClick={() => setDurationMonths(m)}
-                  className="flex-1 py-3.5 rounded-xl text-[13px] font-semibold transition-all cursor-pointer"
-                  style={{
-                    background: active ? 'var(--accent-muted)' : 'var(--bg-elevated)',
-                    border: `1.5px solid ${active ? 'var(--accent)' : 'transparent'}`,
-                    color: active ? 'var(--accent)' : 'var(--text-secondary)',
-                    boxShadow: active ? '0 0 12px rgba(16,185,129,0.15)' : 'none',
-                  }}
-                >
-                  {m} month{m > 1 ? 's' : ''}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         {/* Collateral */}
         <div className="flex justify-between py-4 text-[13px]" style={{ borderTop: '1px solid var(--border)' }}>
           <span style={{ color: 'var(--text-tertiary)' }}>Collateral</span>
@@ -218,10 +158,11 @@ export default function SpendFlow({ selectedHolding, prices, onBack, onComplete 
           </span>
         </div>
 
-        {/* Expiry Note */}
+        {/* Protection Note */}
         <div className="text-[12px] leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-          Repay <strong style={{ color: 'var(--text-secondary)' }}>by {formatDate(collar.expiryDate)}</strong> to
-          unlock shares. If not repaid, shares are sold to settle.
+          Your shares are protected with a zero-cost collar
+          until <strong style={{ color: 'var(--text-secondary)' }}>{formatDate(collar.expiryDate)}</strong>.
+          Settle anytime to unlock your shares.
         </div>
 
         {/* How does this work? */}
@@ -241,23 +182,23 @@ export default function SpendFlow({ selectedHolding, prices, onBack, onComplete 
             <div className="mt-5 pt-5" style={{ borderTop: '1px solid var(--border)' }}>
               <CollarGraph price={stockPrice || 225} floor={collar.floor} cap={collar.cap} stockName={stockName} />
               <div className="text-[13px] mt-4 leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-                This is a 0% interest loan backed by your {stockName} shares. We hold a small portion as collateral
-                and protect it with a zero-cost options collar (the green zone above). The recipient gets paid
-                instantly. Repay anytime before the due date and your shares are released. If you don&apos;t repay,
-                the shares are sold to cover the balance.
+                This is a 0% portfolio advance backed by your {stockName} shares. We hold a small portion as
+                collateral and protect it with a zero-cost options collar (the green zone above). You get a
+                virtual card instantly. Settle anytime and your shares are released. If not settled, shares are
+                sold to cover the balance.
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Send Button */}
+      {/* Action Button */}
       <button
         onClick={handleSend}
-        disabled={!priceLoaded || val <= 0 || val > maxSpend || sending || !recipientSelected}
+        disabled={!priceLoaded || val <= 0 || val > maxSpend || sending}
         className="btn-primary w-full py-4 text-[15px]"
       >
-        {sending ? 'Sending...' : `Send ${formatUsd(val)}`}
+        {sending ? 'Issuing card...' : `Get Card · ${formatUsd(val)}`}
       </button>
     </div>
   );

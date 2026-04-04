@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { calculateCollar } from '@/lib/collar';
 import { getStockPrice } from '@/lib/price';
 import { addNote } from '@/lib/store';
+import { issueVirtualCard } from '@/lib/lithic';
 
 const hederaConfigured = !!(
   process.env.HEDERA_OPERATOR_ID &&
@@ -16,7 +17,8 @@ export async function POST(req: NextRequest) {
       amount,
       symbol = 'TSLA',
       durationMonths = 1,
-      recipientName = 'Someone',
+      issueCard = false,
+      recipientName,
       userAccountId,
     } = body;
 
@@ -57,11 +59,34 @@ export async function POST(req: NextRequest) {
       await transferNft(noteTokenId, serial, operatorId, userAccountId);
     }
 
+    // Issue virtual card via Lithic
+    let cardPan: string | undefined;
+    let cardCvv: string | undefined;
+    let cardExpMonth: string | undefined;
+    let cardExpYear: string | undefined;
+    let cardToken: string | undefined;
+    let cardLastFour: string | undefined;
+
+    if (issueCard) {
+      const amountCents = Math.round(amount * 100);
+      const result = await issueVirtualCard(amountCents);
+      if (result.success && result.card) {
+        cardPan = result.card.pan;
+        cardCvv = result.card.cvv;
+        cardExpMonth = result.card.expMonth;
+        cardExpYear = result.card.expYear;
+        cardToken = result.card.token;
+        cardLastFour = result.card.lastFour;
+      } else {
+        console.error('Lithic card issuance failed after collar:', result.error);
+      }
+    }
+
     const note = addNote({
       symbol,
       serial: hederaConfigured ? 1 : Date.now(),
       recipient: userAccountId || 'demo-user',
-      recipientName,
+      recipientName: recipientName || 'Virtual Card',
       amount: collar.advance,
       shares: collar.shares,
       sharesHts: collar.sharesHts,
@@ -74,6 +99,8 @@ export async function POST(req: NextRequest) {
       txId,
       createdAt: new Date().toISOString(),
       userAccountId: userAccountId || 'demo-user',
+      cardToken,
+      cardLastFour,
     });
 
     return NextResponse.json({
@@ -88,6 +115,14 @@ export async function POST(req: NextRequest) {
         expiryDate: collar.expiryDate.toISOString(),
       },
       txId,
+      card: cardPan ? {
+        pan: cardPan,
+        cvv: cardCvv,
+        expMonth: cardExpMonth,
+        expYear: cardExpYear,
+        lastFour: cardLastFour,
+        token: cardToken,
+      } : undefined,
     });
   } catch (error) {
     console.error('Spend error:', error);

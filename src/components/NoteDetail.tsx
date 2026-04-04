@@ -143,10 +143,10 @@ export default function NoteDetail({ noteId, onBack }: NoteDetailProps) {
         </div>
       )}
 
-      {/* Loan Details */}
+      {/* Advance Details */}
       <div className="card p-6 mb-6">
         <div className="text-[11px] font-semibold uppercase tracking-wider mb-5" style={{ color: 'var(--text-tertiary)' }}>
-          Loan Details
+          Advance Details
         </div>
 
         <div className="flex flex-col gap-4">
@@ -155,8 +155,7 @@ export default function NoteDetail({ noteId, onBack }: NoteDetailProps) {
             { label: 'Collateral', value: `${formatShares(note.shares)} ${note.symbol || 'TSLA'}` },
             { label: 'Interest', value: '0%', color: 'var(--accent)' },
             { label: 'Protection', value: `${formatUsd(note.floor)} floor / ${formatUsd(note.cap)} cap` },
-            { label: 'Duration', value: `${note.durationMonths} month${note.durationMonths > 1 ? 's' : ''}` },
-            { label: 'Repay by', value: formatDate(expiry) },
+            { label: 'Protected until', value: formatDate(expiry) },
           ].map((row) => (
             <div key={row.label} className="flex justify-between text-[14px]">
               <span style={{ color: 'var(--text-tertiary)' }}>{row.label}</span>
@@ -170,10 +169,10 @@ export default function NoteDetail({ noteId, onBack }: NoteDetailProps) {
 
         <div className="text-[12px] mt-5 pt-5 leading-relaxed" style={{ color: 'var(--text-tertiary)', borderTop: '1px solid var(--border)' }}>
           {note.status === 'repaid'
-            ? 'Loan repaid. Your shares have been unlocked and returned.'
+            ? 'Advance settled. Your shares have been unlocked and returned.'
             : note.status === 'expired'
-            ? 'Loan expired. Collateral shares were sold to settle the balance.'
-            : `Repay ${formatUsd(note.amount)} before ${formatDate(expiry)} to unlock your shares.`}
+            ? 'Advance expired. Collateral shares were sold to cover the balance.'
+            : `Settle ${formatUsd(note.amount)} before ${formatDate(expiry)} to unlock your shares.`}
         </div>
       </div>
 
@@ -189,7 +188,7 @@ export default function NoteDetail({ noteId, onBack }: NoteDetailProps) {
           disabled={repaying}
           className="btn-primary w-full py-4.5 text-[15px]"
         >
-          {repaying ? 'Processing...' : `Repay ${formatUsd(note.amount)} & Unlock Shares`}
+          {repaying ? 'Processing...' : `Settle ${formatUsd(note.amount)} & Unlock Shares`}
         </button>
       )}
     </div>

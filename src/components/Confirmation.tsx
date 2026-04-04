@@ -22,15 +22,15 @@ export default function Confirmation({ result, onViewDetails, onDone }: Confirma
         </svg>
       </div>
 
-      <div className="text-[26px] font-bold mb-2">Sent!</div>
+      <div className="text-[26px] font-bold mb-2">Done!</div>
       <div className="text-[15px] mb-10" style={{ color: 'var(--text-secondary)' }}>
-        {formatUsd(result.amount)} sent to {result.recipientName}
+        {formatUsd(result.amount)} advance from your portfolio
       </div>
 
-      {/* Loan Summary Card */}
+      {/* Advance Summary Card */}
       <div className="card p-6 text-left mb-8">
         <div className="text-[11px] font-semibold uppercase tracking-wider mb-5" style={{ color: 'var(--text-tertiary)' }}>
-          Loan Summary
+          Advance Summary
         </div>
 
         <div className="flex flex-col gap-4">
@@ -38,7 +38,7 @@ export default function Confirmation({ result, onViewDetails, onDone }: Confirma
             { label: 'Amount', value: formatUsd(result.amount) },
             { label: 'Collateral', value: `${formatShares(result.shares)} ${result.symbol}` },
             { label: 'Interest', value: '0%', accent: true },
-            { label: 'Repay by', value: formatDate(expiryDate) },
+            { label: 'Protected until', value: formatDate(expiryDate) },
           ].map((row) => (
             <div key={row.label} className="flex justify-between text-[14px]">
               <span style={{ color: 'var(--text-tertiary)' }}>{row.label}</span>
@@ -51,8 +51,8 @@ export default function Confirmation({ result, onViewDetails, onDone }: Confirma
         </div>
 
         <div className="text-[12px] mt-5 pt-5 leading-relaxed" style={{ color: 'var(--text-tertiary)', borderTop: '1px solid var(--border)' }}>
-          Repay {formatUsd(result.amount)} before {formatDate(expiryDate)} to unlock your shares.
-          If not repaid, collateral shares will be sold to settle.
+          Settle {formatUsd(result.amount)} before {formatDate(expiryDate)} to unlock your shares.
+          If not settled, collateral shares will be sold to cover the balance.
         </div>
       </div>
 

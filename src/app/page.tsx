@@ -6,13 +6,15 @@ import BottomNav from '@/components/BottomNav';
 import Portfolio from '@/components/Portfolio';
 import SpendFlow from '@/components/SpendFlow';
 import Confirmation from '@/components/Confirmation';
+import CardResult from '@/components/CardResult';
+import CardsList from '@/components/CardsList';
 import NotesList from '@/components/NotesList';
 import NoteDetail from '@/components/NoteDetail';
 import { AuthGuard } from '@/components/auth/auth-guard';
 import { usePlaidHoldings } from '@/lib/use-plaid-holdings';
 import type { Holding } from '@/lib/types';
 
-export type Screen = 'portfolio' | 'spend' | 'confirm' | 'notes' | 'note-detail';
+export type Screen = 'portfolio' | 'spend' | 'confirm' | 'card-result' | 'cards' | 'notes' | 'note-detail';
 
 export interface PriceData {
   symbol: string;
@@ -26,11 +28,21 @@ export interface SpendResult {
   symbol: string;
   amount: number;
   shares: number;
-  recipientName: string;
   durationMonths: number;
   expiryDate: string;
   noteId: number;
   txId: string;
+  // Virtual card fields (present when card is issued)
+  card?: {
+    pan: string;
+    cvv: string;
+    expMonth: string;
+    expYear: string;
+    lastFour: string;
+    token: string;
+  };
+  // P2P fields (present when send flow is used)
+  recipientName?: string;
 }
 
 export default function Home() {
@@ -46,6 +58,8 @@ export default function Home() {
     portfolio: 'portfolio',
     spend: 'spend',
     confirm: 'spend',
+    'card-result': 'spend',
+    cards: 'cards',
     notes: 'notes',
     'note-detail': 'notes',
   };
@@ -84,7 +98,7 @@ export default function Home() {
 
   const handleSpendComplete = (result: SpendResult) => {
     setLastSpend(result);
-    setScreen('confirm');
+    setScreen(result.card ? 'card-result' : 'confirm');
   };
 
   const handleViewNote = (noteId: number) => {
@@ -133,6 +147,24 @@ export default function Home() {
               }}
               onDone={() => setScreen('portfolio')}
             />
+          )}
+          {screen === 'card-result' && lastSpend && (
+            <CardResult
+              result={lastSpend}
+              onViewNote={() => {
+                setSelectedNoteId(lastSpend.noteId);
+                setScreen('note-detail');
+              }}
+              onViewCards={() => setScreen('cards')}
+              onDone={() => setScreen('portfolio')}
+            />
+          )}
+          {screen === 'cards' && (
+            <CardsList onGetCard={() => {
+              const first = holdings.find((h) => h.shares > 0);
+              if (first) handleSpendFromHolding(first);
+              else setScreen('spend');
+            }} />
           )}
           {screen === 'notes' && (
             <NotesList onSelectNote={handleViewNote} />

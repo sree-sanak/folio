@@ -19,6 +19,9 @@ export interface SpendNote {
   txId: string;
   createdAt: string;
   userAccountId: string;
+  // Virtual card fields
+  cardToken?: string;
+  cardLastFour?: string;
 }
 
 const notes: SpendNote[] = [];
