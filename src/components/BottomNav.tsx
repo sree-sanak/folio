@@ -56,7 +56,7 @@ export default function BottomNav({ activeTab, onNavigate }: BottomNavProps) {
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 flex"
       style={{
-        background: 'rgba(10,10,11,0.85)',
+        background: 'rgba(12,12,14,0.85)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
         borderTop: '1px solid rgba(255,255,255,0.06)',

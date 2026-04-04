@@ -55,10 +55,16 @@ export default function CardsList({ onGetCard }: CardsListProps) {
       </div>
 
       {loading ? (
-        <div className="text-center py-20 text-[14px]" style={{ color: 'var(--text-tertiary)' }}>
-          <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-3"
-            style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
-          Loading...
+        <div role="status" aria-busy="true" aria-label="Loading" className="flex flex-col gap-3">
+          {[0, 1].map((i) => (
+            <div key={i} className="card p-5 space-y-4">
+              <div className="skeleton h-44 w-full rounded-2xl" />
+              <div className="space-y-2">
+                <div className="skeleton h-4 w-32 rounded" />
+                <div className="skeleton h-3 w-20 rounded" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : cards.length === 0 ? (
         <div className="text-center py-20">

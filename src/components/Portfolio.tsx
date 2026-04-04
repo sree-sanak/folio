@@ -109,8 +109,20 @@ export default function Portfolio({
         </div>
 
         {plaidStatus === 'loading' ? (
-          <div className="card p-6 text-center">
-            <div className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Loading holdings...</div>
+          <div role="status" aria-busy="true" aria-label="Loading" className="space-y-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="card flex items-center gap-4 p-5">
+                <div className="skeleton w-11 h-11 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <div className="skeleton h-4 w-24 rounded" />
+                  <div className="skeleton h-3 w-16 rounded" />
+                </div>
+                <div className="flex flex-col items-end space-y-2">
+                  <div className="skeleton h-4 w-20 rounded" />
+                  <div className="skeleton h-3 w-14 rounded" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           /* Holdings List */

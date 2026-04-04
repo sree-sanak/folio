@@ -48,10 +48,20 @@ export default function NotesList({ onSelectNote }: NotesListProps) {
       <div className="text-xl font-semibold mb-6">Transactions</div>
 
       {loading ? (
-        <div className="text-center py-20 text-[14px]" style={{ color: 'var(--text-tertiary)' }}>
-          <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-3"
-            style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
-          Loading...
+        <div role="status" aria-busy="true" aria-label="Loading" className="flex flex-col gap-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="card flex items-center gap-4 p-5">
+              <div className="skeleton w-11 h-11 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <div className="skeleton h-4 w-24 rounded" />
+                <div className="skeleton h-3 w-16 rounded" />
+              </div>
+              <div className="flex flex-col items-end space-y-2">
+                <div className="skeleton h-4 w-20 rounded" />
+                <div className="skeleton h-5 w-16 rounded-full" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : notes.length === 0 ? (
         <div className="text-center py-20">

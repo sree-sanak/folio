@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --bg-base: #0A0A0B;
-  --bg-surface: #141415;
-  --bg-elevated: #1C1C1E;
-  --bg-input: #1C1C1E;
+  --bg-base: #0C0C0E;
+  --bg-surface: #161618;
+  --bg-elevated: #1E1E21;
+  --bg-input: #1E1E21;
   --border: rgba(255,255,255,0.06);
   --border-focus: #10B981;
   --text-primary: #F5F5F7;
@@ -25,7 +25,7 @@
 @theme inline {
   --color-background: var(--bg-base);
   --color-foreground: var(--text-primary);
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: var(--font-geist), -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 *,
@@ -35,7 +35,7 @@
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  font-family: var(--font-geist), -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
   background: var(--bg-base);
   color: var(--text-primary);
   min-height: 100vh;
@@ -142,4 +142,15 @@ body {
 /* Subtle gradient overlay on main area */
 .main-gradient {
   background: linear-gradient(180deg, rgba(16,185,129,0.02) 0%, transparent 300px);
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-elevated) 25%, rgba(255,255,255,0.04) 50%, var(--bg-elevated) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
 }

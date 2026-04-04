@@ -64,10 +64,28 @@ export default function NoteDetail({ noteId, onBack }: NoteDetailProps) {
 
   if (loading) {
     return (
-      <div className="text-center py-20 text-[14px]" style={{ color: 'var(--text-tertiary)' }}>
-        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-3"
-          style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
-        Loading...
+      <div role="status" aria-busy="true" aria-label="Loading">
+        {/* Top: avatar + name bars */}
+        <div className="flex items-center gap-4 mb-3">
+          <div className="skeleton w-11 h-11 rounded-full" />
+          <div className="space-y-2">
+            <div className="skeleton h-5 w-32 rounded" />
+            <div className="skeleton h-3 w-20 rounded" />
+          </div>
+        </div>
+        {/* Amount */}
+        <div className="skeleton h-10 w-40 rounded mx-auto mt-6" />
+        {/* Detail card */}
+        <div className="card p-6 mt-6">
+          <div className="flex flex-col gap-4">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex justify-between">
+                <div className="skeleton h-3 w-20 rounded" />
+                <div className="skeleton h-3 w-24 rounded" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
