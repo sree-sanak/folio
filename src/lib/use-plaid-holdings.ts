@@ -12,6 +12,7 @@ interface PlaidHookResult {
   holdings: Holding[];
   openLink: () => void;
   isPlaidAvailable: boolean;
+  isDemo: boolean;
 }
 
 export function usePlaidHoldings(): PlaidHookResult {
@@ -19,6 +20,7 @@ export function usePlaidHoldings(): PlaidHookResult {
   const [holdings, setHoldings] = useState<Holding[]>(DEMO_HOLDINGS);
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [isPlaidAvailable, setIsPlaidAvailable] = useState(false);
+  const [isDemo, setIsDemo] = useState(true);
 
   // Fetch link token on mount
   useEffect(() => {
@@ -79,7 +81,13 @@ export function usePlaidHoldings(): PlaidHookResult {
         gradient: holdingGradient(h.symbol),
       }));
 
-      setHoldings(mapped.length > 0 ? mapped : DEMO_HOLDINGS);
+      if (mapped.length > 0) {
+        setHoldings(mapped);
+        setIsDemo(false);
+      } else {
+        setHoldings(DEMO_HOLDINGS);
+        setIsDemo(true);
+      }
       setStatus('connected');
     } catch {
       setStatus('error');
@@ -114,5 +122,5 @@ export function usePlaidHoldings(): PlaidHookResult {
     if (ready) open();
   }, [ready, open]);
 
-  return { status, holdings, openLink, isPlaidAvailable };
+  return { status, holdings, openLink, isPlaidAvailable, isDemo };
 }
