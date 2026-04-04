@@ -33,7 +33,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
               Folio
             </h1>
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              Sign in to view your portfolio
+              Sign in with your email to continue
             </p>
           </div>
           <ConnectButton />
