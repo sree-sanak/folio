@@ -1,8 +1,7 @@
-// Plaid client singleton + file-backed token store
+// Plaid client singleton + Supabase-backed token store
 
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
-import { readFileSync, writeFileSync } from 'fs';
-import { join } from 'path';
+import { supabase } from './supabase';
 
 const configuration = new Configuration({
   basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
@@ -20,32 +19,31 @@ export const isPlaidConfigured = !!(
   process.env.PLAID_CLIENT_ID && process.env.PLAID_SECRET
 );
 
-// File-backed access token store — persists across dev server restarts
-// In production, use encrypted database storage
-const TOKEN_FILE = join(process.cwd(), '.plaid-tokens.json');
-
-function loadTokens(): Record<string, string> {
-  try {
-    return JSON.parse(readFileSync(TOKEN_FILE, 'utf-8'));
-  } catch {
-    return {};
-  }
+export async function setAccessToken(userId: string, token: string): Promise<void> {
+  const { error } = await supabase
+    .from('plaid_tokens')
+    .upsert({
+      user_id: userId,
+      access_token: token,
+      updated_at: new Date().toISOString(),
+    });
+  if (error) throw error;
 }
 
-function saveTokens(tokens: Record<string, string>): void {
-  writeFileSync(TOKEN_FILE, JSON.stringify(tokens, null, 2));
+export async function getAccessToken(userId: string): Promise<string | undefined> {
+  const { data } = await supabase
+    .from('plaid_tokens')
+    .select('access_token')
+    .eq('user_id', userId)
+    .single();
+  return data?.access_token ?? undefined;
 }
 
-export function setAccessToken(userId: string, token: string): void {
-  const tokens = loadTokens();
-  tokens[userId] = token;
-  saveTokens(tokens);
-}
-
-export function getAccessToken(userId: string): string | undefined {
-  return loadTokens()[userId];
-}
-
-export function hasAccessToken(userId: string): boolean {
-  return userId in loadTokens();
+export async function hasAccessToken(userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('plaid_tokens')
+    .select('user_id')
+    .eq('user_id', userId)
+    .single();
+  return !!data;
 }

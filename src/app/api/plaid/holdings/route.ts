@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   }
 
   const userId = req.nextUrl.searchParams.get('userId') || 'demo-user';
-  const accessToken = getAccessToken(userId);
+  const accessToken = await getAccessToken(userId);
 
   if (!accessToken) {
     return NextResponse.json(

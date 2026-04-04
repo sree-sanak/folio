@@ -1,8 +1,6 @@
-// File-backed user registry — maps Dynamic auth users to Hedera accounts
-// In production, use encrypted database storage
+// User registry — maps Dynamic auth users to Hedera accounts (Supabase-backed)
 
-import { readFileSync, writeFileSync } from 'fs';
-import { join } from 'path';
+import { supabase } from './supabase';
 
 export interface FolioUser {
   email: string;
@@ -11,53 +9,73 @@ export interface FolioUser {
   createdAt: string;
 }
 
-const REGISTRY_FILE = join(process.cwd(), '.user-registry.json');
-
-function loadRegistry(): Record<string, FolioUser> {
-  try {
-    return JSON.parse(readFileSync(REGISTRY_FILE, 'utf-8'));
-  } catch {
-    return {};
-  }
+interface UserRow {
+  email: string;
+  name: string;
+  hedera_account_id: string;
+  created_at: string;
 }
 
-function saveRegistry(registry: Record<string, FolioUser>): void {
-  writeFileSync(REGISTRY_FILE, JSON.stringify(registry, null, 2));
-}
-
-export function getUser(email: string): FolioUser | undefined {
-  return loadRegistry()[email.toLowerCase()];
-}
-
-export function registerUser(email: string, name: string, hederaAccountId: string): FolioUser {
-  const registry = loadRegistry();
-  const key = email.toLowerCase();
-  const user: FolioUser = {
-    email: key,
-    name: name || email.split('@')[0],
-    hederaAccountId,
-    createdAt: new Date().toISOString(),
+function rowToUser(row: UserRow): FolioUser {
+  return {
+    email: row.email,
+    name: row.name,
+    hederaAccountId: row.hedera_account_id,
+    createdAt: row.created_at,
   };
-  registry[key] = user;
-  saveRegistry(registry);
-  return user;
 }
 
-export function searchUsers(query: string): FolioUser[] {
-  const registry = loadRegistry();
+export async function getUser(email: string): Promise<FolioUser | undefined> {
+  const { data } = await supabase
+    .from('users')
+    .select()
+    .eq('email', email.toLowerCase())
+    .single();
+  return data ? rowToUser(data) : undefined;
+}
+
+export async function registerUser(
+  email: string,
+  name: string,
+  hederaAccountId: string
+): Promise<FolioUser> {
+  const key = email.toLowerCase();
+  const { data, error } = await supabase
+    .from('users')
+    .upsert({
+      email: key,
+      name: name || email.split('@')[0],
+      hedera_account_id: hederaAccountId,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return rowToUser(data);
+}
+
+export async function searchUsers(query: string): Promise<FolioUser[]> {
   const q = query.toLowerCase().trim();
   if (!q) return [];
 
-  return Object.values(registry).filter(
-    (u) => u.name.toLowerCase().includes(q) || u.email.includes(q)
-  );
+  const { data } = await supabase
+    .from('users')
+    .select()
+    .or(`name.ilike.%${q}%,email.ilike.%${q}%`);
+  return (data ?? []).map(rowToUser);
 }
 
-export function getUserByAccountId(accountId: string): FolioUser | undefined {
-  const registry = loadRegistry();
-  return Object.values(registry).find((u) => u.hederaAccountId === accountId);
+export async function getUserByAccountId(
+  accountId: string
+): Promise<FolioUser | undefined> {
+  const { data } = await supabase
+    .from('users')
+    .select()
+    .eq('hedera_account_id', accountId)
+    .single();
+  return data ? rowToUser(data) : undefined;
 }
 
-export function getAllUsers(): FolioUser[] {
-  return Object.values(loadRegistry());
+export async function getAllUsers(): Promise<FolioUser[]> {
+  const { data } = await supabase.from('users').select();
+  return (data ?? []).map(rowToUser);
 }

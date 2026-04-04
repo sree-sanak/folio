@@ -1,49 +1,73 @@
+// Mock supabase before importing plaid
+jest.mock('../supabase', () => {
+  const store: Record<string, string> = {};
+  return {
+    supabase: {
+      from: (table: string) => ({
+        upsert: (row: { user_id: string; access_token: string }) => {
+          store[row.user_id] = row.access_token;
+          return { error: null };
+        },
+        select: (col?: string) => ({
+          eq: (_field: string, value: string) => ({
+            single: () => ({
+              data: store[value]
+                ? col === 'user_id'
+                  ? { user_id: value }
+                  : { access_token: store[value] }
+                : null,
+            }),
+          }),
+        }),
+      }),
+    },
+  };
+});
+
+// Mock plaid npm package
+jest.mock('plaid', () => ({
+  Configuration: jest.fn().mockImplementation(() => ({})),
+  PlaidApi: jest.fn().mockImplementation(() => ({})),
+  PlaidEnvironments: { sandbox: 'https://sandbox.plaid.com' },
+}));
+
 describe('plaid token store', () => {
-  // Fresh import per test to reset module state
-  let setAccessToken: (userId: string, token: string) => void;
-  let getAccessToken: (userId: string) => string | undefined;
-  let hasAccessToken: (userId: string) => boolean;
+  let setAccessToken: (userId: string, token: string) => Promise<void>;
+  let getAccessToken: (userId: string) => Promise<string | undefined>;
+  let hasAccessToken: (userId: string) => Promise<boolean>;
 
   beforeEach(() => {
     jest.resetModules();
-    // Dynamic import to get fresh store per test
     const plaid = require('../plaid');
     setAccessToken = plaid.setAccessToken;
     getAccessToken = plaid.getAccessToken;
     hasAccessToken = plaid.hasAccessToken;
   });
 
-  it('stores and retrieves access token', () => {
-    setAccessToken('user-1', 'token-abc');
-    expect(getAccessToken('user-1')).toBe('token-abc');
+  it('stores and retrieves access token', async () => {
+    await setAccessToken('user-1', 'token-abc');
+    expect(await getAccessToken('user-1')).toBe('token-abc');
   });
 
-  it('returns undefined for unknown user', () => {
-    expect(getAccessToken('unknown')).toBeUndefined();
+  it('returns undefined for unknown user', async () => {
+    expect(await getAccessToken('unknown')).toBeUndefined();
   });
 
-  it('hasAccessToken returns true for stored user', () => {
-    setAccessToken('user-1', 'token-abc');
-    expect(hasAccessToken('user-1')).toBe(true);
+  it('hasAccessToken returns true for stored user', async () => {
+    await setAccessToken('user-1', 'token-abc');
+    expect(await hasAccessToken('user-1')).toBe(true);
   });
 
-  it('hasAccessToken returns false for unknown user', () => {
-    expect(hasAccessToken('unknown')).toBe(false);
+  it('hasAccessToken returns false for unknown user', async () => {
+    expect(await hasAccessToken('unknown')).toBe(false);
   });
 
-  it('overwrites existing token', () => {
-    setAccessToken('user-1', 'old-token');
-    setAccessToken('user-1', 'new-token');
-    expect(getAccessToken('user-1')).toBe('new-token');
+  it('overwrites existing token', async () => {
+    await setAccessToken('user-1', 'old-token');
+    await setAccessToken('user-1', 'new-token');
+    expect(await getAccessToken('user-1')).toBe('new-token');
   });
 });
-
-// Mock the plaid npm package to avoid import errors
-jest.mock('plaid', () => ({
-  Configuration: jest.fn().mockImplementation(() => ({})),
-  PlaidApi: jest.fn().mockImplementation(() => ({})),
-  PlaidEnvironments: { sandbox: 'https://sandbox.plaid.com' },
-}));
 
 describe('isPlaidConfigured', () => {
   const originalEnv = process.env;
