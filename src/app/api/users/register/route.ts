@@ -32,28 +32,33 @@ export async function POST(req: NextRequest) {
       const { accountId, privateKey } = await createAccount();
       hederaAccountId = accountId;
 
-      // Associate all platform tokens with the new account (needs account owner's key)
-      const tokenIds = ['TSLA', 'AAPL']
-        .map(getTokenIdForSymbol)
-        .filter(Boolean) as string[];
+      // Token association and funding are best-effort — don't block registration
+      try {
+        const tokenIds = ['TSLA', 'AAPL']
+          .map(getTokenIdForSymbol)
+          .filter(Boolean) as string[];
 
-      const usdcId = process.env.USDC_TEST_TOKEN_ID;
-      const noteId = process.env.SPEND_NOTE_TOKEN_ID;
-      if (usdcId) tokenIds.push(usdcId);
-      if (noteId) tokenIds.push(noteId);
+        const usdcId = process.env.USDC_TEST_TOKEN_ID;
+        const noteId = process.env.SPEND_NOTE_TOKEN_ID;
+        if (usdcId) tokenIds.push(usdcId);
+        if (noteId) tokenIds.push(noteId);
 
-      if (tokenIds.length > 0) {
-        await associateTokens(hederaAccountId, tokenIds, privateKey);
-      }
+        if (tokenIds.length > 0) {
+          await associateTokens(hederaAccountId, tokenIds, privateKey);
+        }
 
-      // Fund new account with USDC from treasury (demo: 500 USDC)
-      if (usdcId) {
-        const operatorId = process.env.HEDERA_OPERATOR_ID!;
-        const fundAmount = 500_000_000; // 500 USDC (6 decimals)
-        await transferToken(usdcId, operatorId, hederaAccountId, fundAmount);
+        // Fund new account with USDC from treasury (demo: 500 USDC)
+        if (usdcId) {
+          const operatorId = process.env.HEDERA_OPERATOR_ID!;
+          const fundAmount = 500_000_000; // 500 USDC (6 decimals)
+          await transferToken(usdcId, operatorId, hederaAccountId, fundAmount);
+        }
+      } catch (tokenError) {
+        console.error('Token setup failed (account still created):', tokenError);
       }
     }
 
+    // Always persist the user row — even if token setup failed above
     const user = await registerUser(email, name || '', hederaAccountId);
 
     return NextResponse.json({ user, created: true });

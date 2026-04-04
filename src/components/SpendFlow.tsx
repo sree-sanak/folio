@@ -22,6 +22,7 @@ interface SpendFlowProps {
 export default function SpendFlow({ mode, selectedHolding, holdings, prices, currentUserAccountId, onBack, onComplete }: SpendFlowProps) {
   const [amount, setAmount] = useState('50');
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState('');
   const [expandHow, setExpandHow] = useState(false);
   const [currentHolding, setCurrentHolding] = useState<Holding>(selectedHolding);
   const [showPicker, setShowPicker] = useState(false);
@@ -106,6 +107,7 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
   const handleSend = async () => {
     if (val <= 0 || val > maxSpend) return;
     setSending(true);
+    setSendError('');
 
     try {
       const res = await authFetch('/api/spend', {
@@ -117,11 +119,14 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
           durationMonths,
           issueCard: mode === 'card',
           recipientAccountId: mode === 'send' ? resolvedRecipientId : undefined,
-          userAccountId: 'demo-user',
+          userAccountId: currentUserAccountId || 'demo-user',
         }),
       });
 
-      if (!res.ok) throw new Error('API error');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.details || err.error || 'Transaction failed');
+      }
 
       const data = await res.json();
 
@@ -137,18 +142,8 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
         recipientName: mode === 'send' ? (recipientName || resolvedRecipientId) : undefined,
         recipientAccountId: mode === 'send' ? resolvedRecipientId : undefined,
       });
-    } catch {
-      onComplete({
-        symbol,
-        amount: val,
-        shares: collar.shares,
-        durationMonths,
-        expiryDate: collar.expiryDate.toISOString(),
-        noteId: Date.now(),
-        txId: 'demo-tx-' + Date.now(),
-        recipientName: mode === 'send' ? (recipientName || resolvedRecipientId) : undefined,
-        recipientAccountId: mode === 'send' ? resolvedRecipientId : undefined,
-      });
+    } catch (err) {
+      setSendError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setSending(false);
     }
@@ -421,6 +416,13 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
           )}
         </div>
       </div>
+
+      {/* Error Message */}
+      {sendError && (
+        <div className="text-center text-[13px] px-4 py-2 rounded-lg" style={{ color: 'var(--negative)', background: 'var(--bg-elevated)' }}>
+          {sendError}
+        </div>
+      )}
 
       {/* Action Button */}
       <button
