@@ -68,10 +68,20 @@ export async function POST(req: NextRequest) {
 
     const stockTokenId = getTokenIdForSymbol(symbol);
     if (hederaConfigured && stockTokenId) {
-      const { submitSignedTransaction, transferToken, mintSpendNoteWithIpfs, transferNft, getOperatorId, submitAuditMessage } = await import('@/lib/hedera');
+      const { submitSignedTransaction, transferToken, mintSpendNoteWithIpfs, transferNft, getOperatorId, submitAuditMessage, getTokenBalances } = await import('@/lib/hedera');
       const operatorId = getOperatorId().toString();
       const usdcTokenId = process.env.USDC_TEST_TOKEN_ID!;
       const noteTokenId = process.env.SPEND_NOTE_TOKEN_ID!;
+
+      // Pre-flight: verify treasury has enough USDC before proceeding
+      const treasuryBalances = await getTokenBalances(operatorId);
+      const treasuryUsdc = treasuryBalances.get(usdcTokenId) ?? 0;
+      if (treasuryUsdc < collar.advanceHts) {
+        return NextResponse.json(
+          { error: 'Treasury has insufficient USDC balance. Please try a smaller amount or try again later.' },
+          { status: 503 }
+        );
+      }
 
       // Submit client-signed collateral lock (server adds operator co-signature)
       if (signedCollateralTxBytes) {
