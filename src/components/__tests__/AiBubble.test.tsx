@@ -9,6 +9,21 @@ jest.mock('@/lib/use-auth-fetch', () => ({
   authFetch: jest.fn(),
 }));
 
+// Mock useHederaKey — settle flow now calls prepare → sign → execute
+jest.mock('@/lib/use-hedera-key', () => ({
+  useHederaKey: () => ({
+    hasKey: true,
+    publicKeyDer: 'mock-pubkey',
+    signTransaction: jest.fn().mockResolvedValue('mock-signed-tx'),
+    generateKey: jest.fn(),
+    encryptAndStore: jest.fn(),
+    recoverKey: jest.fn(),
+    exportKey: jest.fn(),
+    importKey: jest.fn(),
+    clearKey: jest.fn(),
+  }),
+}));
+
 import AiBubble from '../AiBubble';
 import type { ActiveNote } from '../AiBubble';
 import { authFetch } from '@/lib/use-auth-fetch';
@@ -121,8 +136,14 @@ describe('AiBubble', () => {
       expect(screen.getByText('Settle Now')).toBeInTheDocument();
     });
 
-    it('calls repay API on settle click and shows success', async () => {
+    it('calls prepare + repay APIs on settle click and shows success', async () => {
       jest.useRealTimers();
+      // Step 1: prepare returns tx bytes to sign
+      mockAuthFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ needsSignature: true, repayTxBytes: 'dHgtYnl0ZXM=' }),
+      } as unknown as Response);
+      // Step 2: execute repay succeeds
       mockAuthFetch.mockResolvedValueOnce({ ok: true } as Response);
       const onRepaySuccess = jest.fn();
 
@@ -140,7 +161,6 @@ describe('AiBubble', () => {
       await waitFor(() => {
         expect(mockAuthFetch).toHaveBeenCalledWith('/api/spend/repay', expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ noteId: 1 }),
         }));
       });
 
@@ -149,9 +169,13 @@ describe('AiBubble', () => {
       });
     });
 
-    it('shows error on settle failure', async () => {
+    it('shows error on settle failure at prepare step', async () => {
       jest.useRealTimers();
-      mockAuthFetch.mockResolvedValueOnce({ ok: false } as Response);
+      // Prepare step fails
+      mockAuthFetch.mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({ error: 'Failed to prepare' }),
+      } as unknown as Response);
 
       render(
         <AiBubble activeNotes={[baseNote]} prices={basePrices} onRepaySuccess={jest.fn()} />
@@ -165,7 +189,7 @@ describe('AiBubble', () => {
       fireEvent.click(screen.getByText('Settle Now'));
 
       await waitFor(() => {
-        expect(screen.getByText('Settlement failed. Try again.')).toBeInTheDocument();
+        expect(screen.getByText('Failed to prepare')).toBeInTheDocument();
       });
     });
   });
