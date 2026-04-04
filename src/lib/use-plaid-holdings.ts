@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { usePlaidLink } from 'react-plaid-link';
+import { getAuthToken } from '@dynamic-labs/sdk-react-core';
 import { authFetch } from '@/lib/use-auth-fetch';
 import type { Holding } from './types';
 import { DEMO_HOLDINGS, holdingGradient } from './types';
@@ -26,7 +27,7 @@ export function usePlaidHoldings(): PlaidHookResult {
   // Load tokenized holdings from Hedera (always runs — these are the native HTS equities)
   const fetchHederaHoldings = useCallback(async (): Promise<boolean> => {
     try {
-      const res = await fetch('/api/hedera/holdings');
+      const res = await authFetch('/api/hedera/holdings');
       if (!res.ok) return false;
       const data = await res.json();
       if (data.holdings?.length > 0) {
@@ -42,6 +43,12 @@ export function usePlaidHoldings(): PlaidHookResult {
     let cancelled = false;
 
     async function init() {
+      // Skip API calls if not authenticated yet (avoids 401 console errors)
+      if (!getAuthToken()) {
+        setStatus('idle');
+        return;
+      }
+
       // Always load Hedera tokenized holdings first
       const hasHedera = await fetchHederaHoldings();
       if (!hasHedera && !cancelled) {
