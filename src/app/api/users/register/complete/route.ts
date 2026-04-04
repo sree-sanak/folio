@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser } from '@/lib/user-registry';
+import { getTokenIdForSymbol } from '@/lib/token-registry';
 import { verifyAuth, unauthorized } from '@/lib/auth';
 
 const hederaConfigured = !!(
@@ -30,13 +31,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, user });
     }
 
-    const { submitSignedTransaction, transferToken } = await import('@/lib/hedera');
+    const { submitSignedTransaction, transferToken, grantKyc, unfreezeAccount } = await import('@/lib/hedera');
 
     // Decode base64 → Uint8Array
     const bytes = Uint8Array.from(Buffer.from(signedTxBytes, 'base64'));
 
     // Submit the client-signed token association (server adds operator co-signature)
     await submitSignedTransaction(bytes);
+
+    // Grant KYC and unfreeze for stock tokens (they have freezeDefault=true + KYC key)
+    const stockSymbols = ['TSLA', 'AAPL'];
+    for (const symbol of stockSymbols) {
+      const tokenId = getTokenIdForSymbol(symbol);
+      if (tokenId) {
+        await grantKyc(tokenId, user.hederaAccountId);
+        await unfreezeAccount(tokenId, user.hederaAccountId);
+      }
+    }
 
     // Fund with USDC from treasury (operator-only, no user signature needed)
     const usdcId = process.env.USDC_TEST_TOKEN_ID;
