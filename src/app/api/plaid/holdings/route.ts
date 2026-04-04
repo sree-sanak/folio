@@ -32,11 +32,13 @@ export async function GET(req: NextRequest) {
       securities.map((s) => [s.security_id, s])
     );
 
-    // Map to our Holding shape, filtering to equities with ticker symbols
+    // Map to our Holding shape, filtering to equities/ETFs with ticker symbols
+    const ALLOWED_TYPES = new Set(['equity', 'etf']);
     const mapped = holdings
       .map((h) => {
         const security = securityMap.get(h.security_id);
         if (!security?.ticker_symbol) return null;
+        if (!ALLOWED_TYPES.has(security.type ?? '')) return null;
         return {
           symbol: security.ticker_symbol,
           name: security.name || security.ticker_symbol,
