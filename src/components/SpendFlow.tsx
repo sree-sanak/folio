@@ -18,6 +18,7 @@ export default function SpendFlow({ prices, onBack, onComplete }: SpendFlowProps
   const [sending, setSending] = useState(false);
   const [expandHow, setExpandHow] = useState(false);
 
+  const priceLoaded = prices.TSLA !== undefined;
   const tslaPrice = prices.TSLA?.price ?? 225;
   const val = parseFloat(amount) || 0;
   const maxSpend = 44 * tslaPrice;
@@ -138,8 +139,8 @@ export default function SpendFlow({ prices, onBack, onComplete }: SpendFlowProps
           <div className="text-[14px] font-semibold">Tesla</div>
           <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Paying from</div>
         </div>
-        <div className="text-[15px] font-semibold" style={{ fontVariantNumeric: 'tabular-nums' }}>
-          ${tslaPrice.toFixed(2)}
+        <div className="text-[15px] font-semibold" style={{ fontVariantNumeric: 'tabular-nums', color: priceLoaded ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
+          {priceLoaded ? `$${tslaPrice.toFixed(2)}` : '···'}
         </div>
       </div>
 
@@ -242,7 +243,7 @@ export default function SpendFlow({ prices, onBack, onComplete }: SpendFlowProps
       {/* Send Button */}
       <button
         onClick={handleSend}
-        disabled={val <= 0 || val > maxSpend || sending || !recipientSelected}
+        disabled={!priceLoaded || val <= 0 || val > maxSpend || sending || !recipientSelected}
         className="btn-primary w-full py-4.5 text-[15px]"
       >
         {sending ? 'Sending...' : `Send ${formatUsd(val)}`}
