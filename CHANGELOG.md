@@ -2,6 +2,20 @@
 
 All notable changes to Folio will be documented in this file.
 
+## [0.2.6.0] - 2026-04-04
+
+### Added
+- MockUSDC contract on Base Sepolia with public mint for testnet demos
+- Foundry deploy script (DeployMockUSDC.s.sol) and SetPriceFeeds script for Chainlink oracle setup
+- Auto-mint 25 USDC to user's Dynamic embedded wallet on registration
+- Oracle maintenance fee (0.25 USDC per spend) sent on Base Sepolia to fund Chainlink updates
+- Stale oracle fallback: Dynamic server wallet pushes fresh CollarOracle data when CRE workflow is behind
+
+### Changed
+- KYC grant and token unfreeze now wired into user registration (stock tokens have freezeDefault=true)
+- Dynamic server wallet repurposed from redundant USDC transfer to oracle maintenance
+- EVM settlement block now encodes real ERC-20 calldata instead of empty 0x stub
+
 ## [0.2.5.0] - 2026-04-04
 
 ### Added
