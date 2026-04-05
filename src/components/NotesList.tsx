@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { formatUsd, formatDate } from '@/lib/collar';
 import { authFetch } from '@/lib/use-auth-fetch';
 import { useHederaKey } from '@/lib/use-hedera-key';
+import Spinner from '@/components/Spinner';
 
 interface SpendNote {
   id: number;
@@ -194,7 +195,7 @@ export default function NotesList({ onSelectNote }: NotesListProps) {
                       className="text-[13px] font-semibold px-4 py-1.5 rounded-lg cursor-pointer transition-colors"
                       style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}
                     >
-                      {settlingId === note.id ? (settleStatus || 'Settling...') : 'Settle'}
+                      {settlingId === note.id ? <span className="flex items-center gap-1.5"><Spinner size={14} />{settleStatus || 'Settling...'}</span> : 'Settle'}
                     </button>
                     </div>
                   </div>

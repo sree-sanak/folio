@@ -7,6 +7,7 @@ import { calculateCollar, formatShares, formatUsd, formatDate } from '@/lib/coll
 import { authFetch } from '@/lib/use-auth-fetch';
 import CollarGraph from '@/components/CollarGraph';
 import { useHederaKey } from '@/lib/use-hedera-key';
+import Spinner from '@/components/Spinner';
 
 export type SpendMode = 'send' | 'card';
 
@@ -563,10 +564,10 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
         className="btn-primary w-full py-4 text-[15px]"
       >
         {sending
-          ? (sendStatus === 'preparing' ? 'Preparing...'
+          ? <span className="flex items-center justify-center gap-2"><Spinner size={16} />{sendStatus === 'preparing' ? 'Preparing...'
             : sendStatus === 'signing' ? 'Signing...'
             : sendStatus === 'submitting' ? 'Submitting...'
-            : 'Processing...')
+            : 'Processing...'}</span>
           : (mode === 'send' ? `Send ${formatUsd(val)}` : `Get Card · ${formatUsd(val)} at 0%`)}
       </button>
     </div>

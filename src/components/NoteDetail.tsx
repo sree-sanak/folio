@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { formatUsd, formatShares, formatDate } from '@/lib/collar';
 import { authFetch } from '@/lib/use-auth-fetch';
 import { useHederaKey } from '@/lib/use-hedera-key';
+import Spinner from '@/components/Spinner';
 
 interface SpendNote {
   id: number;
@@ -283,7 +284,7 @@ export default function NoteDetail({ noteId, onBack }: NoteDetailProps) {
             disabled={repaying}
             className="btn-primary w-full py-4.5 text-[15px]"
           >
-            {repaying ? (repayStatus || 'Processing...') : `Settle ${formatUsd(note.amount)} & Unlock Shares`}
+            {repaying ? <span className="flex items-center justify-center gap-2"><Spinner size={16} />{repayStatus || 'Processing...'}</span> : `Settle ${formatUsd(note.amount)} & Unlock Shares`}
           </button>
         </>
       )}

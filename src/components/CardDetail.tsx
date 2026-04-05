@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { formatUsd } from '@/lib/collar';
 import { authFetch } from '@/lib/use-auth-fetch';
+import Spinner from '@/components/Spinner';
 
 interface CardDetailProps {
   noteId: number;
@@ -265,7 +266,7 @@ export default function CardDetail({ noteId, onBack }: CardDetailProps) {
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
               </svg>
               <span className="text-[13px] font-semibold" style={{ color: 'var(--accent)' }}>
-                {detailsLoading ? 'Loading...' : 'Reveal Card Details'}
+                {detailsLoading ? <><Spinner size={14} /> Loading...</> : 'Reveal Card Details'}
               </span>
             </button>
           )}
@@ -285,7 +286,7 @@ export default function CardDetail({ noteId, onBack }: CardDetailProps) {
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
                   </svg>
                   <span className="text-[13px] font-semibold" style={{ color: 'var(--accent)' }}>
-                    {freezing ? 'Unfreezing...' : 'Unfreeze'}
+                    {freezing ? <><Spinner size={14} color="var(--accent)" /> Unfreezing...</> : 'Unfreeze'}
                   </span>
                 </>
               ) : (
@@ -294,7 +295,7 @@ export default function CardDetail({ noteId, onBack }: CardDetailProps) {
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 5-5 5 5 0 0 1 5 5v4" />
                   </svg>
                   <span className="text-[13px] font-semibold" style={{ color: 'var(--negative)' }}>
-                    {freezing ? 'Freezing...' : 'Freeze Card'}
+                    {freezing ? <><Spinner size={14} color="var(--negative)" /> Freezing...</> : 'Freeze Card'}
                   </span>
                 </>
               )}

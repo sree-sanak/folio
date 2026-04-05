@@ -9,6 +9,7 @@ import { formatUsd, formatShares } from '@/lib/collar';
 import { authFetch } from '@/lib/use-auth-fetch';
 import { useHederaKey } from '@/lib/use-hedera-key';
 import { useAnimatedNumber } from '@/lib/use-animated-number';
+import Spinner from '@/components/Spinner';
 
 function AnimatedValue({ value, prefix = '' }: { value: number; prefix?: string }) {
   const animated = useAnimatedNumber(value);
@@ -225,7 +226,7 @@ export default function Portfolio({
             disabled={settling}
             className="btn-primary w-full py-3.5 text-[14px]"
           >
-            {settling ? (settleStatus || 'Settling...') : `Settle & Unlock ${urgentNote.symbol}`}
+            {settling ? <span className="flex items-center justify-center gap-2"><Spinner size={16} />{settleStatus || 'Settling...'}</span> : `Settle & Unlock ${urgentNote.symbol}`}
           </button>
         </div>
       )}

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useDynamicContext, useUserWallets } from '@dynamic-labs/sdk-react-core';
 import type { PlaidStatus } from '@/lib/use-plaid-holdings';
 import { useHederaKey } from '@/lib/use-hedera-key';
+import Spinner from '@/components/Spinner';
 
 
 interface SettingsProps {
@@ -26,7 +27,7 @@ export default function Settings({
   const embeddedWallet = userWallets.find((w) => w.connector?.isEmbeddedWallet === true);
   const [showKey, setShowKey] = useState(false);
   const [importInput, setImportInput] = useState('');
-  const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [importStatus, setImportStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [copied, setCopied] = useState(false);
   const [evmCopied, setEvmCopied] = useState(false);
   useEffect(() => {
@@ -111,7 +112,7 @@ export default function Settings({
               disabled={plaidStatus === 'loading'}
               className="btn-primary w-full py-3.5 text-[14px] font-semibold"
             >
-              {plaidStatus === 'loading' ? 'Connecting...' : 'Connect Brokerage'}
+              {plaidStatus === 'loading' ? <span className="flex items-center justify-center gap-2"><Spinner size={14} />Connecting...</span> : 'Connect Brokerage'}
             </button>
           </div>
         ) : (
@@ -339,6 +340,7 @@ export default function Settings({
               />
               <button
                 onClick={async () => {
+                  setImportStatus('loading');
                   try {
                     await doImportKey(importInput.trim());
                     setImportStatus('success');
@@ -347,11 +349,11 @@ export default function Settings({
                     setImportStatus('error');
                   }
                 }}
-                disabled={!importInput.trim()}
+                disabled={!importInput.trim() || importStatus === 'loading'}
                 className="w-full py-2.5 text-[13px] font-semibold rounded-xl transition-colors"
                 style={{ background: 'var(--accent-muted)', color: 'var(--accent)', opacity: importInput.trim() ? 1 : 0.5 }}
               >
-                Import Key
+                {importStatus === 'loading' ? <span className="flex items-center justify-center gap-2"><Spinner size={14} />Importing...</span> : 'Import Key'}
               </button>
               {importStatus === 'success' && (
                 <div className="text-[11px]" style={{ color: 'var(--positive)' }}>Key imported successfully</div>
