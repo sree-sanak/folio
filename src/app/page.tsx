@@ -318,6 +318,7 @@ export default function Home() {
               holdings={holdings}
               prices={prices}
               currentUserAccountId={folioUser?.hederaAccountId}
+              activeNotes={activeNotes}
               onBack={() => spendMode === 'card' ? setScreen('cards') : setScreen('portfolio')}
               onComplete={handleSpendComplete}
             />

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { PriceData, SpendResult } from '@/app/page';
 import type { Holding } from '@/lib/types';
+import type { ActiveNote } from '@/components/AiBubble';
 import { calculateCollar, formatShares, formatUsd, formatDate } from '@/lib/collar';
 import { authFetch } from '@/lib/use-auth-fetch';
 import CollarGraph from '@/components/CollarGraph';
@@ -17,11 +18,12 @@ interface SpendFlowProps {
   holdings: Holding[];
   prices: Record<string, PriceData>;
   currentUserAccountId?: string;
+  activeNotes?: ActiveNote[];
   onBack: () => void;
   onComplete: (result: SpendResult) => void;
 }
 
-export default function SpendFlow({ mode, selectedHolding, holdings, prices, currentUserAccountId, onBack, onComplete }: SpendFlowProps) {
+export default function SpendFlow({ mode, selectedHolding, holdings, prices, currentUserAccountId, activeNotes = [], onBack, onComplete }: SpendFlowProps) {
   const [amount, setAmount] = useState('');
   const [sending, setSending] = useState(false);
   const [sendStatus, setSendStatus] = useState<'idle' | 'preparing' | 'signing' | 'submitting'>('idle');
@@ -125,14 +127,25 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
     };
   }, [amount, currentHolding.symbol, durationMonths]);
 
-  const spendableHoldings = holdings.filter((h) => h.shares > 0);
+  // Calculate locked shares per symbol from active notes (already in escrow)
+  const lockedBySymbol = activeNotes.reduce<Record<string, number>>((acc, note) => {
+    acc[note.symbol] = (acc[note.symbol] || 0) + note.shares;
+    return acc;
+  }, {});
+
+  const spendableHoldings = holdings.filter((h) => {
+    const available = h.shares - (lockedBySymbol[h.symbol] || 0);
+    return available > 0;
+  });
 
   const { symbol, name: stockName, shares: totalShares, icon: stockIcon, gradient: stockGradient } = currentHolding;
+  const lockedShares = lockedBySymbol[symbol] || 0;
+  const availableShares = Math.max(0, totalShares - lockedShares);
 
   const priceLoaded = prices[symbol] !== undefined;
   const stockPrice = prices[symbol]?.price ?? 0;
   const val = parseFloat(amount) || 0;
-  const maxSpend = totalShares * stockPrice;
+  const maxSpend = availableShares * stockPrice;
   const collar = calculateCollar(val, stockPrice || 225, durationMonths);
 
   // Prefer AI-optimized collar values when available, fall back to static
@@ -349,7 +362,9 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
             style={{ background: stockGradient }}>{stockIcon}</div>
           <div className="flex-1">
             <div className="text-[14px] font-semibold">{stockName}</div>
-            <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Paying from</div>
+            <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+              {lockedShares > 0 ? `${formatShares(availableShares)} available · ${formatShares(lockedShares)} locked` : 'Paying from'}
+            </div>
           </div>
           <div className="text-[15px] font-semibold" style={{ fontVariantNumeric: 'tabular-nums', color: priceLoaded ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
             {priceLoaded ? `$${maxSpend.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '···'}
@@ -382,11 +397,11 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
                     <div className="flex-1">
                       <div className="text-[14px] font-semibold">{h.name}</div>
                       <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                        {h.shares} shares
+                        {formatShares(h.shares - (lockedBySymbol[h.symbol] || 0))} available{(lockedBySymbol[h.symbol] || 0) > 0 ? ` · ${formatShares(lockedBySymbol[h.symbol])} locked` : ''}
                       </div>
                     </div>
                     <div className="text-[15px] font-semibold" style={{ fontVariantNumeric: 'tabular-nums', color: hp ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
-                      {hp ? `$${(h.shares * hp.price).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '···'}
+                      {hp ? `$${((h.shares - (lockedBySymbol[h.symbol] || 0)) * hp.price).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '···'}
                     </div>
                   </button>
                 );
