@@ -40,8 +40,11 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
 
   const [durationMonths, setDurationMonths] = useState(1);
 
-  // AI collar optimizer state
-  const [aiCollar, setAiCollar] = useState<{ floorPct: number; capPct: number; durationMonths: number; confidence: number; reasoning: string; riskLevel: string; warnings: string[] } | null>(null);
+  // AI collar optimizer state — stores all 3 duration results for instant switching
+  const [aiResults, setAiResults] = useState<Record<number, {
+    recommendation: { floorPct: number; capPct: number; durationMonths: number; confidence: number; reasoning: string; riskLevel: string; warnings: string[] };
+    collar: { shares: number; floor: number; cap: number; advance: number; fee: number; expiryDate: string };
+  }> | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
 
   const hasRecipient = mode === 'card' || !!recipientAccountId;
@@ -88,29 +91,29 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
     return () => clearTimeout(verifyTimeout.current);
   }, [recipientInput, mode, recipientAccountId, currentUserAccountId]);
 
-  // Debounced AI collar optimization — non-blocking enhancement
+  // Debounced AI collar optimization — fetches all 3 durations in one call
   useEffect(() => {
     const val = parseFloat(amount) || 0;
     if (!val || !currentHolding.symbol) {
-      setAiCollar(null);
+      setAiResults(null);
       return;
     }
 
     setAiLoading(true);
-    setAiCollar(null);
+    setAiResults(null);
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
         const res = await authFetch('/api/ai/optimize', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ symbol: currentHolding.symbol, amount: val, durationMonths }),
+          body: JSON.stringify({ symbol: currentHolding.symbol, amount: val }),
           signal: controller.signal,
         });
         if (res.ok) {
           const data = await res.json();
-          if (data.recommendation) {
-            setAiCollar(data.recommendation);
+          if (data.durations) {
+            setAiResults(data.durations);
           }
         }
       } catch {
@@ -125,7 +128,7 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
       controller.abort();
       setAiLoading(false);
     };
-  }, [amount, currentHolding.symbol, durationMonths]);
+  }, [amount, currentHolding.symbol]);
 
   // Calculate locked shares per symbol from active notes (already in escrow)
   const lockedBySymbol = activeNotes.reduce<Record<string, number>>((acc, note) => {
@@ -148,9 +151,10 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
   const maxSpend = availableShares * stockPrice;
   const collar = calculateCollar(val, stockPrice || 225, durationMonths);
 
-  // Prefer AI-optimized collar values when available, fall back to static
-  const effectiveFloor = aiCollar ? (stockPrice || 225) * (1 - aiCollar.floorPct) : collar.floor;
-  const effectiveCap = aiCollar ? (stockPrice || 225) * (1 + aiCollar.capPct) : collar.cap;
+  // Pick current duration's AI data — switching duration is instant from cached results
+  const currentAi = aiResults?.[durationMonths]?.recommendation;
+  const effectiveFloor = currentAi ? (stockPrice || 225) * (1 - currentAi.floorPct) : collar.floor;
+  const effectiveCap = currentAi ? (stockPrice || 225) * (1 + currentAi.capPct) : collar.cap;
 
   const handleSend = async () => {
     if (val <= 0 || val > maxSpend) return;
@@ -221,6 +225,10 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
         card: data.card,
         recipientName: mode === 'send' ? (recipientName || resolvedRecipientId) : undefined,
         recipientAccountId: mode === 'send' ? resolvedRecipientId : undefined,
+        floor: data.collar?.floor,
+        cap: data.collar?.cap,
+        floorPct: data.collar?.floorPct,
+        capPct: data.collar?.capPct,
         ai: data.ai,
       });
     } catch (err) {
@@ -465,11 +473,6 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
               );
             })}
           </div>
-          {aiCollar && aiCollar.durationMonths !== durationMonths && (
-            <p style={{ color: '#71717A', fontSize: '12px', marginTop: '4px' }}>
-              AI suggests {aiCollar.durationMonths} month{aiCollar.durationMonths > 1 ? 's' : ''} (lower volatility risk)
-            </p>
-          )}
         </div>
 
         {/* Collateral */}
@@ -487,10 +490,10 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
           <div className="p-4 rounded-xl" style={{ background: 'var(--bg-elevated)' }}>
             <div className="flex items-center gap-2 mb-3">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <path d="M18 20V10M12 20V4M6 20v-6" />
               </svg>
               <span className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                Your Protection
+                Price Range
               </span>
               {aiLoading && (
                 <div className="h-3 w-16 rounded ml-auto" style={{ background: 'linear-gradient(90deg, var(--bg-elevated) 25%, var(--border) 50%, var(--bg-elevated) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
@@ -510,9 +513,9 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
                 </div>
               </div>
             </div>
-            {aiCollar && aiCollar.warnings.length > 0 && (
+            {currentAi && currentAi.warnings.length > 0 && (
               <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
-                {aiCollar.warnings.map((w, i) => (
+                {currentAi.warnings.map((w, i) => (
                   <div key={i} className="text-[12px] flex items-start gap-1.5" style={{ color: 'var(--text-tertiary)' }}>
                     <span style={{ color: '#F59E0B' }}>!</span> {w}
                   </div>
