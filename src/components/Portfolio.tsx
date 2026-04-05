@@ -51,6 +51,9 @@ export default function Portfolio({
   const [settleStatus, setSettleStatus] = useState('');
   const [settleError, setSettleError] = useState<string | null>(null);
   const [settleSuccess, setSettleSuccess] = useState(false);
+  const [advanceDismissedUntil, setAdvanceDismissedUntil] = useState<number>(() => {
+    try { return Number(sessionStorage.getItem('folio:advance-dismissed-until') || '0'); } catch { return 0; }
+  });
   const { signTransaction } = useHederaKey();
 
   // Calculate locked shares per symbol from active notes
@@ -142,11 +145,32 @@ export default function Portfolio({
       </div>
 
       {/* Outstanding Advance */}
-      {urgentNote && !settleSuccess && (
+      {urgentNote && !settleSuccess && Date.now() >= advanceDismissedUntil && (
         <div className="card p-6 relative overflow-hidden"
           style={{ border: '1px solid rgba(245,158,11,0.2)' }}>
           <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-[0.04]"
             style={{ background: '#F59E0B', filter: 'blur(40px)', transform: 'translate(30%, -30%)' }} />
+          {/* Close button — dismisses until next note expiry or 24h */}
+          <button
+            onClick={() => {
+              // Find the next note expiry, or default to 24h from now
+              const sortedExpiries = activeNotes
+                .map((n) => new Date(n.expiryDate).getTime())
+                .sort((a, b) => a - b);
+              const now = Date.now();
+              const nextExpiry = sortedExpiries.find((t) => t > now);
+              const dismissUntil = nextExpiry ?? now + 24 * 60 * 60 * 1000;
+              setAdvanceDismissedUntil(dismissUntil);
+              try { sessionStorage.setItem('folio:advance-dismissed-until', String(dismissUntil)); } catch { /* */ }
+            }}
+            className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full z-10 cursor-pointer"
+            style={{ background: 'rgba(255,255,255,0.06)' }}
+            aria-label="Dismiss"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M2 2l8 8M10 2l-8 8" />
+            </svg>
+          </button>
           <div className="flex items-center justify-between mb-4">
             <div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#F59E0B' }}>
               Outstanding Advance
