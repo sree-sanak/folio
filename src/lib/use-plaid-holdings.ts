@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { usePlaidLink } from 'react-plaid-link';
-import { getAuthToken } from '@dynamic-labs/sdk-react-core';
+import { getAuthToken, useDynamicContext } from '@dynamic-labs/sdk-react-core';
 import { authFetch } from '@/lib/use-auth-fetch';
 import type { Holding } from './types';
 import { DEMO_HOLDINGS, holdingGradient } from './types';
@@ -18,6 +18,7 @@ interface PlaidHookResult {
 }
 
 export function usePlaidHoldings(userAccountId?: string): PlaidHookResult {
+  const { user } = useDynamicContext();
   const [status, setStatus] = useState<PlaidStatus>('loading');
   const [holdings, setHoldings] = useState<Holding[]>(DEMO_HOLDINGS);
   const [linkToken, setLinkToken] = useState<string | null>(null);
@@ -131,7 +132,7 @@ export function usePlaidHoldings(userAccountId?: string): PlaidHookResult {
 
     init();
     return () => { cancelled = true; };
-  }, [fetchHederaHoldings, syncHoldingsToChain, userAccountId]);
+  }, [fetchHederaHoldings, syncHoldingsToChain, userAccountId, user]);
 
   // Fetch brokerage holdings, merge with HTS, and sync to on-chain
   const fetchHoldings = useCallback(async () => {

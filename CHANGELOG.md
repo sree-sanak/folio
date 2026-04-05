@@ -2,6 +2,11 @@
 
 All notable changes to Folio will be documented in this file.
 
+## [0.2.9.1] - 2026-04-05
+
+### Fixed
+- Plaid brokerage integration showing "unavailable" after login due to auth timing race — useEffect now re-runs when Dynamic auth state changes
+
 ## [0.2.9.0] - 2026-04-05
 
 ### Changed
