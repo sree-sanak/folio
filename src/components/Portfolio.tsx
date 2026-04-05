@@ -87,12 +87,21 @@ export default function Portfolio({
     return sum + h.shares * price;
   }, 0) + cryptoValue - outstandingAdvances;
 
+  // Value of locked collateral (can't be spent)
+  const lockedValue = Object.entries(lockedBySymbol).reduce((sum, [sym, shares]) => {
+    const price = prices[sym]?.price ?? 0;
+    return sum + shares * price;
+  }, 0);
+
+  const spendableValue = totalValue - lockedValue;
+
   const totalChange = holdings.reduce((sum, h) => {
     const change = prices[h.symbol]?.change ?? 0;
     return sum + h.shares * change;
   }, 0);
 
   const animatedTotal = useAnimatedNumber(totalValue);
+  const animatedSpendable = useAnimatedNumber(spendableValue);
 
   const isPositive = totalChange >= 0;
   const hasHoldings = visibleHoldings.length > 0;
@@ -476,7 +485,7 @@ export default function Portfolio({
                 Available to Spend
               </div>
               <div className="text-[18px] font-bold" style={{ color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>
-                ${animatedTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ${animatedSpendable.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
             {Object.keys(lockedBySymbol).length > 0 && (
@@ -495,7 +504,7 @@ export default function Portfolio({
               Available to Spend
             </div>
             <div className="text-[30px] font-bold" style={{ color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>
-              ${animatedTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${animatedSpendable.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div className="text-[13px] mt-2" style={{ color: 'var(--text-tertiary)' }}>
               Spend directly from your portfolio
