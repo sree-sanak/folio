@@ -97,6 +97,88 @@
 - Never show hex addresses in the main UI
 - The blockchain layer is invisible plumbing
 
+## Spending Experience
+
+The spending flow is the core product experience. It should feel like Venmo backed by stocks, not a trading terminal.
+
+### Core Principle
+The product is the 0% loan. Not the collar. Not the AI. Not the blockchain. Users spend money and repay it. Everything else is invisible plumbing.
+
+### The Deal Card
+The spend flow shows exactly 4 facts before sending:
+- **They get:** dollar amount
+- **Collateral:** shares locked (e.g., "0.222 TSLA")
+- **Your cost:** $0
+- **Repay by:** date
+
+No floor/cap numbers in the default view. No protection range. No confidence scores. No volatility percentages. These live behind a "Learn more" link for judges and power users.
+
+**Consequence line:** "Repay $X anytime to unlock your shares. If not repaid by [date], you can extend for a fee or shares are sold to settle."
+
+### AI Voice
+The AI speaks like a financially savvy friend, not a Bloomberg terminal. One sentence, human language, actionable.
+
+**Four states:**
+1. **Thinking:** "★ Checking TSLA market conditions..."
+2. **Good:** "★ Good time — TSLA has been steady this month."
+3. **Warning:** "★ Heads up: TSLA earnings on Apr 17. You're covered either way." (amber star for caution)
+4. **Fallback:** "★ Market-based pricing applied." (gray, when no LLM available)
+
+**Never say:** "implied volatility", "put/call ratio", "quantitative model", "expected move", "risk assessment", confidence percentages, or any quant jargon in the default UI. All of that lives behind "Learn more."
+
+**Always say:** plain English, first person when appropriate, actionable. The AI's job is to build confidence or flag something worth knowing.
+
+### Duration Picker
+AI recommends one duration with a star (★). No explanation needed inline. Switching is instant. If the user picks a different one, AI updates to one-line guidance: "Longer loan, more flexibility."
+
+### Transaction Progress
+Replace generic status text with contextual steps:
+- ✓ Locking 0.222 TSLA as collateral
+- ● Confirming your signature
+- ○ Sending $50 to Alex
+
+Each step shows a checkmark when done. If slow (>5s), show "Usually takes a few seconds." No jargon, no "submitting to Hedera."
+
+### Confirmation Screen
+**Hero line:** "$50 sent to Alex" with subtitle "*without selling a single share*" in accent color. This is the emotional payoff.
+
+**Minimal data:** Collateral locked, repay amount + date. That's it.
+
+**AI visible by default (not collapsed):** Forward-looking, reassuring. "TSLA looks steady. Your shares should be fine through May. I'll nudge you before the deadline."
+
+**One primary CTA:** "Back to Portfolio." Receipt link is secondary: "View receipt ↗" (not "Verify on Hedera Testnet").
+
+### AI Settlement Bubble
+The green dot is a persistent deadline buddy, not a one-shot notification.
+
+**Behavior:**
+- Don't auto-dismiss after 10 minutes. Let users X it out.
+- Re-surface when context changes (new day, price move, <7 days to expiry)
+- Turn amber when urgent (<3 days to expiry)
+
+**Tone examples:**
+- Normal: "12 days to repay your $50 TSLA loan. Your shares are doing well. Tap to settle."
+- Urgent: "2 days left on your $50 TSLA loan. Settle now to keep your shares, or extend for a fee."
+- Post-settlement: "Shares unlocked! Your 0.222 TSLA is fully yours again."
+
+**Bottom sheet on tap:** Amount due, shares to unlock, settle button. No collar analysis.
+
+### Repayment / Expiry Language
+- Always mention the extension option: "If not repaid by [date], you can extend for a fee or shares are sold to settle."
+- Never frame it as pure liquidation without the extension alternative
+- The AI bubble should proactively suggest extension when deadline is near and user hasn't acted
+
+### What Lives Behind "Learn More"
+For judges, power users, and the SEC:
+- CollarGraph visualization
+- Floor/cap dollar amounts and percentages
+- AI confidence score and risk level
+- Reasoning paragraph with market data
+- "Why is this free?" explanation (cap as cost mechanism)
+- "How downside protection works" explanation
+
+This content exists and is accurate. It's just not the default experience.
+
 ## Decisions Log
 | Date | Decision | Rationale |
 |------|----------|-----------|
@@ -106,3 +188,5 @@
 | 2026-04-04 | Warm near-black backgrounds | Shifted from #0A0A0B to #0C0C0E for slightly warmer feel. More premium than pure black. |
 | 2026-04-04 | 640px max content on desktop | Previous 420px wasted desktop space. 640px gives room for data while staying focused. |
 | 2026-04-04 | Skeleton loaders over spinners | Industry standard for fintech. Reduces perceived load time, looks more polished. |
+| 2026-04-05 | Spending experience redesign | Strip collar from default view. AI as one-liner advisor, not analyst. 4 facts + 1 AI sentence = the deal card. |
+| 2026-04-05 | Extension option on expiry | Always mention "extend for a fee" as alternative to liquidation. Makes the product friendlier. |
