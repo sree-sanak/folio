@@ -198,6 +198,19 @@ export function useUserRegistration() {
                 });
                 if (regRes.ok) {
                   const regData = await regRes.json();
+                  if (cancelled) return;
+                  // Handle token association if needed (new account after wipe/reset)
+                  if (regData.needsTokenAssociation && regData.tokenAssocTxBytes) {
+                    setStatus('signing-association');
+                    const signedTxBytes = await signTransaction(regData.tokenAssocTxBytes);
+                    if (cancelled) return;
+                    setStatus('completing');
+                    await authFetch('/api/users/register/complete', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ email: user!.email, signedTxBytes }),
+                    });
+                  }
                   if (!cancelled) { setFolioUser(regData.user); setStatus('done'); }
                   return;
                 }

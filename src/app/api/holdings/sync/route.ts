@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'accountId and holdings required' }, { status: 400 });
     }
 
-    const { getTokenBalances, mintFungibleToken, transferToken, getOperatorId } = await import('@/lib/hedera');
+    const { getTokenBalances, mintFungibleToken, transferToken, getOperatorId, grantKyc, unfreezeAccount } = await import('@/lib/hedera');
     const operatorId = getOperatorId().toString();
     const userBalances = await getTokenBalances(accountId);
     const registry = getTokenRegistry();
@@ -48,6 +48,11 @@ export async function POST(req: NextRequest) {
       if (!entry) continue;
 
       const tokenId = entry.tokenId;
+
+      // Ensure KYC + unfreeze (idempotent — safe for already-provisioned users)
+      try { await grantKyc(tokenId, accountId); } catch { /* already granted */ }
+      try { await unfreezeAccount(tokenId, accountId); } catch { /* already unfrozen */ }
+
       const targetAmount = Math.floor(holding.shares * 10 ** HTS_DECIMALS);
       const currentBalance = userBalances.get(tokenId) ?? 0;
 
@@ -61,6 +66,21 @@ export async function POST(req: NextRequest) {
         console.log(`[sync] Minted ${deficit} ${holding.symbol} (${holding.shares} shares) to ${accountId}`);
       } catch (err) {
         console.error(`[sync] Failed to mint ${holding.symbol}:`, err);
+      }
+    }
+
+    // Fund USDC from treasury if user has none
+    const usdcId = process.env.USDC_TEST_TOKEN_ID;
+    if (usdcId) {
+      const usdcBalance = userBalances.get(usdcId) ?? 0;
+      if (usdcBalance === 0) {
+        try {
+          const fundAmount = 500_000_000; // 500 USDC (6 decimals)
+          await transferToken(usdcId, operatorId, accountId, fundAmount);
+          console.log(`[sync] Funded 500 USDC to ${accountId}`);
+        } catch (err) {
+          console.error(`[sync] Failed to fund USDC:`, err);
+        }
       }
     }
 

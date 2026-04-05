@@ -96,7 +96,8 @@ export default function Portfolio({
 
   // Check if any price is from fallback (not live)
   const sources = Object.values(prices).map((p) => p.source);
-  const isLive = sources.length > 0 && sources.every((s) => s === 'live' || s === 'cached');
+  const pricesLoaded = sources.length > 0;
+  const isLive = pricesLoaded && sources.every((s) => s === 'live' || s === 'cached');
 
   return (
     <div className="space-y-10">
@@ -104,14 +105,16 @@ export default function Portfolio({
       <div>
         <div className="flex items-center gap-2 text-xs font-medium mb-3 uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
           <span>Total Portfolio</span>
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
-            style={{
-              color: isLive ? 'var(--positive)' : 'var(--negative)',
-              background: isLive ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-            }}>
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: isLive ? 'var(--positive)' : 'var(--negative)' }} />
-            {isLive ? 'LIVE' : 'OFFLINE'}
-          </span>
+          {pricesLoaded && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+              style={{
+                color: isLive ? 'var(--positive)' : 'var(--negative)',
+                background: isLive ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+              }}>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: isLive ? 'var(--positive)' : 'var(--negative)' }} />
+              {isLive ? 'LIVE' : 'OFFLINE'}
+            </span>
+          )}
         </div>
         <div className="text-[44px] font-bold tracking-tight leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>
           ${animatedTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

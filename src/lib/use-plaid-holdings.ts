@@ -71,6 +71,8 @@ export function usePlaidHoldings(userAccountId?: string): PlaidHookResult {
       const hasHedera = await fetchHederaHoldings();
       if (!hasHedera && !cancelled) {
         setHoldings(DEMO_HOLDINGS);
+        // Ensure demo tokens exist on-chain (may have been skipped during registration)
+        if (userAccountId) syncHoldingsToChain(userAccountId, DEMO_HOLDINGS);
       }
 
       // Try loading previously-connected brokerage holdings (token persists in DB)

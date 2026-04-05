@@ -456,19 +456,30 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
           <div className="flex gap-2.5">
             {[1, 2, 3].map((m) => {
               const active = durationMonths === m;
+              const mCollar = calculateCollar(val, stockPrice || 225, m);
+              const mAi = aiResults?.[m]?.recommendation;
+              const mFloor = mAi ? (stockPrice || 225) * (1 - mAi.floorPct) : mCollar.floor;
+              const mCap = mAi ? (stockPrice || 225) * (1 + mAi.capPct) : mCollar.cap;
               return (
                 <button
                   key={m}
                   onClick={() => setDurationMonths(m)}
-                  className="flex-1 py-3.5 rounded-xl text-[13px] font-semibold transition-all cursor-pointer"
+                  className="flex-1 rounded-xl text-[13px] font-semibold transition-all cursor-pointer"
                   style={{
                     background: active ? 'var(--accent-muted)' : 'var(--bg-elevated)',
                     border: `1.5px solid ${active ? 'var(--accent)' : 'transparent'}`,
                     color: active ? 'var(--accent)' : 'var(--text-secondary)',
                     boxShadow: active ? '0 0 12px rgba(16,185,129,0.15)' : 'none',
+                    padding: val > 0 ? '10px 8px' : '14px 8px',
                   }}
                 >
-                  {m} month{m > 1 ? 's' : ''}
+                  <div>{m} month{m > 1 ? 's' : ''}</div>
+                  {val > 0 && (
+                    <div className="mt-1.5 space-y-0.5" style={{ fontSize: '10px', fontWeight: 500, opacity: 0.8 }}>
+                      <div style={{ color: '#EF4444' }}>${mFloor.toFixed(0)}</div>
+                      <div style={{ color: active ? 'var(--accent)' : 'var(--text-tertiary)' }}>${mCap.toFixed(0)}</div>
+                    </div>
+                  )}
                 </button>
               );
             })}
@@ -496,7 +507,10 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
                 Price Range
               </span>
               {aiLoading && (
-                <div className="h-3 w-16 rounded ml-auto" style={{ background: 'linear-gradient(90deg, var(--bg-elevated) 25%, var(--border) 50%, var(--bg-elevated) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+                <span className="text-[10px] font-medium ml-auto" style={{ color: 'var(--text-tertiary)' }}>optimizing...</span>
+              )}
+              {!aiLoading && currentAi && (
+                <span className="text-[10px] font-medium ml-auto" style={{ color: 'var(--accent)' }}>AI optimized</span>
               )}
             </div>
             <div className="grid grid-cols-2 gap-3">
