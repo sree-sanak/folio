@@ -527,21 +527,21 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
           </button>
           {expandHow && (
             <div className="mt-5 pt-5 space-y-4" style={{ borderTop: '1px solid var(--border)' }}>
-              <CollarGraph price={stockPrice || 225} floor={effectiveFloor} cap={effectiveCap} stockName={stockName} />
+              <CollarGraph price={stockPrice || 225} floor={effectiveFloor} cap={effectiveCap} stockName={stockName} durationMonths={durationMonths} />
               <div className="text-[13px] leading-relaxed space-y-3" style={{ color: 'var(--text-tertiary)' }}>
                 <p>
-                  <strong style={{ color: 'var(--text-secondary)' }}>Borrow at 0% interest.</strong>{' '}
-                  We hold {formatShares(collar.shares)} of your {stockName} shares as collateral.
+                  <strong style={{ color: 'var(--text-secondary)' }}>Why is this free?</strong>{' '}
+                  Instead of charging interest, you temporarily cap your upside on {formatShares(collar.shares)} {stockName} shares
+                  at <strong style={{ color: 'var(--accent)' }}>+{((effectiveCap / (stockPrice || 225) - 1) * 100).toFixed(1)}%</strong> for {durationMonths} month{durationMonths > 1 ? 's' : ''}.
+                  That cap is how we fund the loan — no interest, no fees.
                 </p>
                 <p>
-                  <strong style={{ color: 'var(--text-secondary)' }}>You&apos;re protected.</strong>{' '}
-                  If {stockName} drops below ${effectiveFloor.toFixed(0)}, we absorb the loss. If it rises
-                  above ${effectiveCap.toFixed(0)}, you give up gains beyond that. The upside limit is
-                  what makes the 0% interest possible.
+                  <strong style={{ color: 'var(--text-secondary)' }}>You keep the downside protection.</strong>{' '}
+                  If {stockName} drops more than {((1 - effectiveFloor / (stockPrice || 225)) * 100).toFixed(1)}% (below ${effectiveFloor.toFixed(0)}), we absorb the loss — not you.
                 </p>
                 <p>
                   <strong style={{ color: 'var(--text-secondary)' }}>Repay anytime</strong> before {formatDate(collar.expiryDate)} and
-                  your shares are released. If not, they&apos;re sold to cover the balance.
+                  your shares are fully unlocked. If not, they&apos;re sold to cover the balance.
                 </p>
               </div>
             </div>
