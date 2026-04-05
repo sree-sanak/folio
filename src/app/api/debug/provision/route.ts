@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTokenRegistry } from '@/lib/token-registry';
 import { DEMO_HOLDINGS } from '@/lib/types';
-import { verifyAuth, unauthorized } from '@/lib/auth';
 
 // GET /api/debug/provision?accountId=0.0.XXX
 // Diagnoses and fixes token provisioning for a specific account.
 // Returns detailed step-by-step results showing exactly what fails.
+// No auth required — testnet diagnostic only. Remove before production.
 
 export async function GET(req: NextRequest) {
-  const auth = await verifyAuth(req);
-  if (!auth.authenticated) return unauthorized(auth.error);
 
   const accountId = req.nextUrl.searchParams.get('accountId');
   if (!accountId) {
