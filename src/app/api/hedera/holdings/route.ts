@@ -16,10 +16,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ holdings: [], source: 'not_configured' });
   }
 
+  const accountId = req.nextUrl.searchParams.get('accountId');
+  if (!accountId) {
+    return NextResponse.json({ holdings: [], source: 'no_account' });
+  }
+
   try {
-    const { getTokenBalances, getOperatorId } = await import('@/lib/hedera');
-    const operatorId = getOperatorId().toString();
-    const balances = await getTokenBalances(operatorId);
+    const { getTokenBalances } = await import('@/lib/hedera');
+    const balances = await getTokenBalances(accountId);
     const registry = getTokenRegistry();
 
     // Build lookup: tokenId -> registry entry

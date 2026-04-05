@@ -35,28 +35,17 @@ export async function POST(req: NextRequest) {
 
     const stockTokenId = getTokenIdForSymbol(symbol);
     if (hederaConfigured && stockTokenId) {
-      const { prepareCollateralLock, getTokenBalances, mintFungibleToken, transferToken, getOperatorId } = await import('@/lib/hedera');
+      const { prepareCollateralLock, getTokenBalances } = await import('@/lib/hedera');
 
       // Pre-flight: check if user actually has enough stock tokens to collateralize
       const userBalances = await getTokenBalances(userAccountId);
       const userStockBalance = userBalances.get(stockTokenId) ?? 0;
 
       if (userStockBalance < collar.sharesHts) {
-        // Testnet auto-provision: mint mock stock tokens to represent brokerage holdings
-        // In production, this would be replaced by Swarm's regulated tokenization flow
-        const deficit = collar.sharesHts - userStockBalance;
-        try {
-          await mintFungibleToken(stockTokenId, deficit);
-          const operatorId = getOperatorId().toString();
-          await transferToken(stockTokenId, operatorId, userAccountId, deficit);
-          console.log(`[prepare] Auto-provisioned ${deficit} ${symbol} tokens to ${userAccountId}`);
-        } catch (provisionErr) {
-          console.error(`[prepare] Auto-provision failed for ${symbol}:`, provisionErr);
-          return NextResponse.json(
-            { error: `Insufficient ${symbol} balance and auto-provision failed.`, details: provisionErr instanceof Error ? provisionErr.message : 'Unknown error' },
-            { status: 400 }
-          );
-        }
+        return NextResponse.json(
+          { error: `Insufficient ${symbol} balance. You have ${userStockBalance} tokens but need ${collar.sharesHts} for collateral.` },
+          { status: 400 }
+        );
       }
 
       const txBytes = await prepareCollateralLock(

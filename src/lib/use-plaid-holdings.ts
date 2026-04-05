@@ -17,17 +17,18 @@ interface PlaidHookResult {
   isDemo: boolean;
 }
 
-export function usePlaidHoldings(): PlaidHookResult {
+export function usePlaidHoldings(userAccountId?: string): PlaidHookResult {
   const [status, setStatus] = useState<PlaidStatus>('loading');
   const [holdings, setHoldings] = useState<Holding[]>(DEMO_HOLDINGS);
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [isPlaidAvailable, setIsPlaidAvailable] = useState(false);
   const [isDemo, setIsDemo] = useState(true);
 
-  // Load tokenized holdings from Hedera (always runs — these are the native HTS equities)
+  // Load tokenized holdings from Hedera (user's on-chain balances)
   const fetchHederaHoldings = useCallback(async (): Promise<boolean> => {
+    if (!userAccountId) return false;
     try {
-      const res = await authFetch('/api/hedera/holdings');
+      const res = await authFetch(`/api/hedera/holdings?accountId=${encodeURIComponent(userAccountId)}`);
       if (!res.ok) return false;
       const data = await res.json();
       if (data.holdings?.length > 0) {
@@ -36,7 +37,23 @@ export function usePlaidHoldings(): PlaidHookResult {
       }
     } catch { /* fall through */ }
     return false;
-  }, []);
+  }, [userAccountId]);
+
+  // Sync holdings to on-chain HTS tokens (fire-and-forget)
+  const syncHoldingsToChain = useCallback(async (accountId: string, holdingsToSync: Holding[]) => {
+    try {
+      await authFetch('/api/holdings/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId,
+          holdings: holdingsToSync.map((h) => ({ symbol: h.symbol, shares: h.shares })),
+        }),
+      });
+      // Re-fetch HTS holdings to get updated balances
+      await fetchHederaHoldings();
+    } catch { /* non-blocking — holdings still show from brokerage/demo */ }
+  }, [fetchHederaHoldings]);
 
   // Initialize: load HTS tokenized equities, then set up Plaid for brokerage linking
   useEffect(() => {
@@ -49,10 +66,14 @@ export function usePlaidHoldings(): PlaidHookResult {
         return;
       }
 
-      // Always load Hedera tokenized holdings first
+      // Load user's on-chain HTS stock holdings
       const hasHedera = await fetchHederaHoldings();
       if (!hasHedera && !cancelled) {
         setHoldings(DEMO_HOLDINGS);
+        // Sync demo holdings to on-chain (fire-and-forget)
+        if (userAccountId) {
+          syncHoldingsToChain(userAccountId, DEMO_HOLDINGS);
+        }
       }
 
       // Try loading previously-connected brokerage holdings (token persists in DB)
@@ -110,9 +131,9 @@ export function usePlaidHoldings(): PlaidHookResult {
 
     init();
     return () => { cancelled = true; };
-  }, [fetchHederaHoldings]);
+  }, [fetchHederaHoldings, syncHoldingsToChain, userAccountId]);
 
-  // Fetch brokerage holdings and merge with existing HTS tokenized holdings
+  // Fetch brokerage holdings, merge with HTS, and sync to on-chain
   const fetchHoldings = useCallback(async () => {
     try {
       const res = await authFetch('/api/plaid/holdings');
@@ -131,11 +152,7 @@ export function usePlaidHoldings(): PlaidHookResult {
         // Merge: start with current HTS holdings, add/combine brokerage holdings
         setHoldings((prev) => {
           const merged = new Map<string, Holding>();
-          // Add existing HTS tokenized holdings first
-          for (const h of prev) {
-            merged.set(h.symbol, { ...h });
-          }
-          // Layer in brokerage holdings — combine shares for overlapping symbols
+          for (const h of prev) merged.set(h.symbol, { ...h });
           for (const h of brokerageHoldings) {
             const existing = merged.get(h.symbol);
             if (existing) {
@@ -144,7 +161,10 @@ export function usePlaidHoldings(): PlaidHookResult {
               merged.set(h.symbol, h);
             }
           }
-          return Array.from(merged.values());
+          const result = Array.from(merged.values());
+          // Sync merged totals to on-chain HTS tokens
+          if (userAccountId) syncHoldingsToChain(userAccountId, result);
+          return result;
         });
         setIsDemo(false);
       }
@@ -152,7 +172,7 @@ export function usePlaidHoldings(): PlaidHookResult {
     } catch {
       setStatus('error');
     }
-  }, []);
+  }, [userAccountId, syncHoldingsToChain]);
 
   // Handle Plaid Link success
   const onSuccess = useCallback(async (publicToken: string) => {

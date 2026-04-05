@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser } from '@/lib/user-registry';
 import { getTokenIdForSymbol } from '@/lib/token-registry';
+import { DEMO_HOLDINGS } from '@/lib/types';
 import { verifyAuth, unauthorized } from '@/lib/auth';
 
 const hederaConfigured = !!(
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, user });
     }
 
-    const { submitSignedTransaction, transferToken, grantKyc, unfreezeAccount } = await import('@/lib/hedera');
+    const { submitSignedTransaction, transferToken, mintFungibleToken, grantKyc, unfreezeAccount, getOperatorId } = await import('@/lib/hedera');
 
     // Decode base64 → Uint8Array
     const bytes = Uint8Array.from(Buffer.from(signedTxBytes, 'base64'));
@@ -49,10 +50,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Mint demo stock tokens to the user's account so on-chain balance matches UI
+    // In production, this step is replaced by Swarm's regulated tokenization
+    const operatorId = getOperatorId().toString();
+    const HTS_DECIMALS = 6;
+    for (const holding of DEMO_HOLDINGS) {
+      const tokenId = getTokenIdForSymbol(holding.symbol);
+      if (tokenId) {
+        const amount = Math.floor(holding.shares * 10 ** HTS_DECIMALS);
+        try {
+          await mintFungibleToken(tokenId, amount);
+          await transferToken(tokenId, operatorId, user.hederaAccountId, amount);
+          console.log(`[register] Minted ${holding.shares} ${holding.symbol} to ${user.hederaAccountId}`);
+        } catch (err) {
+          console.error(`[register] Failed to mint ${holding.symbol}:`, err);
+        }
+      }
+    }
+
     // Fund with USDC from treasury (operator-only, no user signature needed)
     const usdcId = process.env.USDC_TEST_TOKEN_ID;
     if (usdcId) {
-      const operatorId = process.env.HEDERA_OPERATOR_ID!;
       const fundAmount = 500_000_000; // 500 USDC (6 decimals)
       await transferToken(usdcId, operatorId, user.hederaAccountId, fundAmount);
     }

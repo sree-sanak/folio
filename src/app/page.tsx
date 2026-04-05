@@ -79,7 +79,6 @@ export default function Home() {
   const [selectedHolding, setSelectedHolding] = useState<Holding | null>(null);
   const [spendMode, setSpendMode] = useState<SpendMode>('send');
 
-  const { status: plaidStatus, holdings, openLink, isPlaidAvailable, isDemo } = usePlaidHoldings();
   const {
     folioUser,
     needsPassphrase,
@@ -91,6 +90,7 @@ export default function Home() {
     status: regStatus,
     error: regError,
   } = useUserRegistration();
+  const { status: plaidStatus, holdings, openLink, isPlaidAvailable, isDemo } = usePlaidHoldings(folioUser?.hederaAccountId);
   const [passphraseInput, setPassphraseInput] = useState('');
   const [cryptoHoldings, setCryptoHoldings] = useState<Holding[]>([]);
   const [activeNotes, setActiveNotes] = useState<ActiveNote[]>([]);
