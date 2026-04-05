@@ -91,12 +91,15 @@ export async function getStockPrice(symbol: string): Promise<PriceData> {
         recordPrice(symbol, feedPrice.price);
         const { change, changePercent } = computeChange(symbol, feedPrice.price);
 
-        // Also try to get collar data from CRE if available
+        // Also try to get collar data from CRE if available and fresh
         let collar: PriceData['collar'] | undefined;
         try {
           const collarData = await getChainlinkCollar(symbol);
           if (collarData) {
-            collar = { floor: collarData.floor, cap: collarData.cap, volatility: collarData.volatility };
+            const collarAgeMs = now - collarData.updatedAt.getTime();
+            if (collarAgeMs < CRE_STALENESS_MS) {
+              collar = { floor: collarData.floor, cap: collarData.cap, volatility: collarData.volatility };
+            }
           }
         } catch { /* collar data is optional */ }
 
