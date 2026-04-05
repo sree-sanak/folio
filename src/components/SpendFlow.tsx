@@ -335,8 +335,8 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
 
       {/* Amount Input */}
       <div>
-        <div className="flex items-center justify-center gap-1 mb-2">
-          <span className="text-3xl font-light" style={{ color: 'var(--text-tertiary)' }}>$</span>
+        <div className="flex items-center justify-center gap-0.5 mb-2">
+          <span className="text-5xl font-bold" style={{ color: 'var(--text-tertiary)' }}>$</span>
           <input
             type="text"
             value={amount}
@@ -347,8 +347,8 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
               setAmount(parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : val);
             }}
             placeholder="0"
-            className="text-5xl font-bold text-center bg-transparent border-none outline-none w-48 placeholder:text-[var(--text-tertiary)]"
-            style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', caretColor: 'var(--accent)' }}
+            className="text-5xl font-bold text-center bg-transparent border-none outline-none placeholder:text-[var(--text-tertiary)]"
+            style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', caretColor: 'var(--accent)', width: `${Math.max(2, (amount || '0').length + 0.5)}ch` }}
             inputMode="decimal"
           />
         </div>
@@ -419,7 +419,7 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
       </div>
 
       {/* Advance Details */}
-      <div className="card p-6 space-y-5">
+      <div className="card p-5 space-y-5">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center"
             style={{ background: 'var(--accent-muted)' }}>
@@ -460,12 +460,11 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
                 <button
                   key={m}
                   onClick={() => setDurationMonths(m)}
-                  className="flex-1 py-3.5 rounded-xl text-[13px] font-semibold transition-all cursor-pointer"
+                  className="flex-1 py-2.5 rounded-lg text-[13px] font-semibold transition-all cursor-pointer"
                   style={{
                     background: active ? 'var(--accent-muted)' : 'var(--bg-elevated)',
                     border: `1.5px solid ${active ? 'var(--accent)' : 'transparent'}`,
                     color: active ? 'var(--accent)' : 'var(--text-secondary)',
-                    boxShadow: active ? '0 0 12px rgba(16,185,129,0.15)' : 'none',
                   }}
                 >
                   {m} month{m > 1 ? 's' : ''}
@@ -476,8 +475,8 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
         </div>
 
         {/* Collateral */}
-        <div aria-live="polite">
-          <div className="flex justify-between py-4 text-[13px]" style={{ borderTop: '1px solid var(--border)' }}>
+        <div aria-live="polite" className="p-4 rounded-lg" style={{ background: 'var(--bg-elevated)' }}>
+          <div className="flex justify-between text-[13px]">
             <span style={{ color: 'var(--text-tertiary)' }}>Collateral</span>
             <span className="font-medium" style={{ color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
               {formatShares(collar.shares)} {symbol} ({formatUsd(collar.collateralValue)})
@@ -501,16 +500,16 @@ export default function SpendFlow({ mode, selectedHolding, holdings, prices, cur
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <div className="text-[11px] mb-1" style={{ color: 'var(--text-tertiary)' }}>If {symbol} drops</div>
-                <div className="text-[15px] font-semibold" style={{ color: '#EF4444', fontVariantNumeric: 'tabular-nums' }}>
-                  Protected below ${effectiveFloor.toFixed(2)}
+                <div className="text-[17px] font-bold" style={{ color: '#EF4444', fontVariantNumeric: 'tabular-nums' }}>
+                  ${effectiveFloor.toFixed(2)}
                 </div>
+                <div className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>Protected floor</div>
               </div>
               <div>
-                <div className="text-[11px] mb-1" style={{ color: 'var(--text-tertiary)' }}>If {symbol} rises</div>
-                <div className="text-[15px] font-semibold" style={{ color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>
-                  Capped at ${effectiveCap.toFixed(2)}
+                <div className="text-[17px] font-bold" style={{ color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>
+                  ${effectiveCap.toFixed(2)}
                 </div>
+                <div className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>Upside cap</div>
               </div>
             </div>
             {currentAi && currentAi.warnings.length > 0 && (
