@@ -70,13 +70,11 @@ export function usePlaidHoldings(userAccountId?: string): PlaidHookResult {
       }
 
       // Load user's on-chain HTS stock holdings (minted at registration)
-      let htsHoldings = await fetchHederaHoldings();
+      const htsHoldings = await fetchHederaHoldings();
       if (!htsHoldings && !cancelled) {
+        // Show demo holdings in UI while waiting for mirror node to catch up.
+        // Don't mint — registration already handles that.
         setHoldings(DEMO_HOLDINGS);
-        // Ensure demo tokens exist on-chain (may have been skipped during registration)
-        if (userAccountId) {
-          htsHoldings = await syncHoldingsToChain(userAccountId, DEMO_HOLDINGS);
-        }
       }
 
       // If user has a connected brokerage, sync those holdings to chain.
