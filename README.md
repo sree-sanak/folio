@@ -2,7 +2,7 @@
 
 > Robinhood let everyone trade stocks. Folio lets everyone borrow against them — at 0% interest.
 
-![Screenshot placeholder — add demo screenshot here](https://via.placeholder.com/800x450/0f1117/10B981?text=Folio+Demo)
+https://github.com/user-attachments/assets/636b3a70-c231-438c-a583-81e847c3d33c
 
 ## The Problem
 
