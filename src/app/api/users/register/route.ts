@@ -25,30 +25,38 @@ export async function POST(req: NextRequest) {
     // Check if user already exists
     const existing = await getUser(email);
     if (existing) {
-      // Even for existing users, prepare token association if Hedera is configured
-      // This handles the case where account was created but provisioning was interrupted
+      // For existing users, check if they need provisioning (interrupted registration)
+      // Skip if they already have stock tokens on-chain
       if (hederaConfigured && existing.hederaAccountId && !existing.hederaAccountId.startsWith('0.0.1')) {
         try {
-          const { prepareTokenAssociation } = await import('@/lib/hedera');
-          const tokenIds = ['TSLA', 'AAPL']
-            .map(getTokenIdForSymbol)
-            .filter(Boolean) as string[];
-          const usdcId = process.env.USDC_TEST_TOKEN_ID;
-          const noteId = process.env.SPEND_NOTE_TOKEN_ID;
-          if (usdcId) tokenIds.push(usdcId);
-          if (noteId) tokenIds.push(noteId);
+          const { prepareTokenAssociation, getTokenBalances } = await import('@/lib/hedera');
 
-          if (tokenIds.length > 0) {
-            const txBytes = await prepareTokenAssociation(existing.hederaAccountId, tokenIds);
-            const tokenAssocTxBytes = Buffer.from(txBytes).toString('base64');
-            return NextResponse.json({
-              user: existing,
-              needsTokenAssociation: true,
-              tokenAssocTxBytes,
-            });
+          // Check if user already has stock tokens — if so, skip re-provisioning
+          const balances = await getTokenBalances(existing.hederaAccountId);
+          const tslaId = getTokenIdForSymbol('TSLA');
+          const hasTokens = tslaId && (balances.get(tslaId) ?? 0) > 0;
+
+          if (!hasTokens) {
+            const tokenIds = ['TSLA', 'AAPL']
+              .map(getTokenIdForSymbol)
+              .filter(Boolean) as string[];
+            const usdcId = process.env.USDC_TEST_TOKEN_ID;
+            const noteId = process.env.SPEND_NOTE_TOKEN_ID;
+            if (usdcId) tokenIds.push(usdcId);
+            if (noteId) tokenIds.push(noteId);
+
+            if (tokenIds.length > 0) {
+              const txBytes = await prepareTokenAssociation(existing.hederaAccountId, tokenIds);
+              const tokenAssocTxBytes = Buffer.from(txBytes).toString('base64');
+              return NextResponse.json({
+                user: existing,
+                needsTokenAssociation: true,
+                tokenAssocTxBytes,
+              });
+            }
           }
         } catch (err) {
-          console.log('[register] Could not prepare token assoc for existing user (may already be done):', err instanceof Error ? err.message : err);
+          console.log('[register] Could not check/prepare token assoc for existing user:', err instanceof Error ? err.message : err);
         }
       }
       return NextResponse.json({ user: existing });
