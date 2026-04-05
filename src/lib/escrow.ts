@@ -30,15 +30,16 @@ export async function executeRepayment(
     const operatorId = getOperatorId().toString();
     const stockTokenId = getTokenIdForSymbol(note.symbol.replace('MOCK-', ''));
 
+    // Return collateral shares FIRST, before taking USDC payment
+    // This ordering protects the user: if share return fails, USDC is not taken
+    if (stockTokenId) {
+      await transferToken(stockTokenId, operatorId, userAccountId, note.sharesHts);
+    }
+
     // Submit user-signed USDC repayment (user → operator)
     if (signedRepayTxBytes) {
       const bytes = Uint8Array.from(Buffer.from(signedRepayTxBytes, 'base64'));
       await submitSignedTransaction(bytes);
-    }
-
-    // Operator returns all collateral shares to user
-    if (stockTokenId) {
-      await transferToken(stockTokenId, operatorId, userAccountId, note.sharesHts);
     }
 
     // Update Supabase
