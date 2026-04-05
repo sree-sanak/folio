@@ -2,6 +2,12 @@
 
 All notable changes to Folio will be documented in this file.
 
+## [0.2.9.3] - 2026-04-05
+
+### Added
+- One-command CRE workflow simulation script for ETHGlobal judges (`chainlink/simulate.sh`)
+- Automatic mock server lifecycle with EXIT trap cleanup and readiness polling
+
 ## [0.2.9.2] - 2026-04-05
 
 ### Removed
