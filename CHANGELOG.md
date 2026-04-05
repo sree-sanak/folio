@@ -2,6 +2,11 @@
 
 All notable changes to Folio will be documented in this file.
 
+## [0.2.9.2] - 2026-04-05
+
+### Removed
+- Dynamic Wallet card from Settings page — internal EVM wallet details are not user-facing
+
 ## [0.2.9.1] - 2026-04-05
 
 ### Fixed
