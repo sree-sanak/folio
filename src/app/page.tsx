@@ -312,7 +312,10 @@ export default function Home() {
   return (
     <AuthGuard>
     <div className="flex min-h-screen">
-      <Sidebar activeTab={navMap[screen]} onNavigate={(s) => setScreen(s as Screen)} />
+      <Sidebar activeTab={navMap[screen]} onNavigate={(s) => {
+        if (s === 'spend') setSpendMode('send');
+        setScreen(s as Screen);
+      }} />
 
       <main className="flex-1 flex justify-center pb-20 md:pb-0 main-gradient">
         <div className="w-full max-w-[420px] md:max-w-[640px] px-6 py-10">
@@ -418,7 +421,10 @@ export default function Home() {
       </main>
 
       <AiBubble activeNotes={activeNotes} prices={prices} onRepaySuccess={fetchNotes} />
-      <BottomNav activeTab={navMap[screen]} onNavigate={(s) => setScreen(s as Screen)} />
+      <BottomNav activeTab={navMap[screen]} onNavigate={(s) => {
+        if (s === 'spend') setSpendMode('send');
+        setScreen(s as Screen);
+      }} />
     </div>
     </AuthGuard>
   );
