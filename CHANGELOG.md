@@ -2,6 +2,18 @@
 
 All notable changes to Folio will be documented in this file.
 
+## [0.2.9.0] - 2026-04-05
+
+### Changed
+- AI optimization endpoint now fetches price, volatility, and treasury balance in parallel (~3x faster)
+- Replaced multi-step agentic LLM pre-flight with direct Hedera SDK balance check (5-10s down to ~200ms)
+- All 3 collar durations (1/2/3 months) computed in a single API call, enabling instant duration switching
+- Added 5-minute AI recommendation cache keyed by symbol to skip redundant LLM calls
+- Renamed "Your Protection" to "Price Range" on spend page for clearer neobank framing
+- Confirmation page now shows floor/cap prices inline in the advance summary
+- AI analysis on confirmation page moved to a collapsible section showing actual reasoning instead of generic text
+- SpendResult type extended with floor, cap, floorPct, capPct fields
+
 ## [0.2.8.0] - 2026-04-05
 
 ### Changed

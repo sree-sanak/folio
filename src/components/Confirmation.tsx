@@ -40,6 +40,8 @@ export default function Confirmation({ result, onViewDetails, onDone }: Confirma
             { label: 'Collateral', value: `${formatShares(result.shares)} ${result.symbol}` },
             { label: 'Interest', value: '0%', accent: true },
             { label: 'Repay by', value: formatDate(expiryDate) },
+            ...(result.floor ? [{ label: 'If stock drops', value: `Protected below $${result.floor.toFixed(2)}` }] : []),
+            ...(result.cap ? [{ label: 'Upside cap', value: `Capped at $${result.cap.toFixed(2)}` }] : []),
           ].map((row) => (
             <div key={row.label} className="flex justify-between text-[14px]">
               <span style={{ color: 'var(--text-tertiary)' }}>{row.label}</span>
@@ -57,34 +59,23 @@ export default function Confirmation({ result, onViewDetails, onDone }: Confirma
         </div>
       </div>
 
-      {/* Protection Summary */}
+      {/* AI Analysis (collapsible) */}
       {result.ai && (
-        <div className="card p-5 text-left mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <details className="card p-5 text-left mb-8">
+          <summary className="flex items-center gap-2 cursor-pointer text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round">
+              <path d="M18 20V10M12 20V4M6 20v-6" />
             </svg>
-            <div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-              Protection
-            </div>
-            <div className="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full" style={{
-              background: result.ai.riskLevel === 'conservative' ? 'rgba(16,185,129,0.1)'
-                : result.ai.riskLevel === 'aggressive' ? 'rgba(239,68,68,0.1)'
-                : 'rgba(59,130,246,0.1)',
-              color: result.ai.riskLevel === 'conservative' ? 'var(--accent)'
-                : result.ai.riskLevel === 'aggressive' ? 'var(--negative)'
-                : '#3B82F6',
+            AI Analysis
+            <span className="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full" style={{
+              background: result.ai.riskLevel === 'conservative' ? 'rgba(16,185,129,0.1)' : result.ai.riskLevel === 'aggressive' ? 'rgba(239,68,68,0.1)' : 'rgba(59,130,246,0.1)',
+              color: result.ai.riskLevel === 'conservative' ? 'var(--accent)' : result.ai.riskLevel === 'aggressive' ? 'var(--negative)' : '#3B82F6',
             }}>
               {result.ai.riskLevel === 'conservative' ? 'Conservative' : result.ai.riskLevel === 'aggressive' ? 'Aggressive' : 'Balanced'}
-            </div>
-          </div>
-          <div className="text-[13px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-            Your {result.symbol} collateral is protected against downside drops.
-            {result.ai.riskLevel === 'conservative'
-              ? ' Wide protection range — lower risk to your shares.'
-              : result.ai.riskLevel === 'aggressive'
-              ? ' Tighter protection — more upside potential but less cushion.'
-              : ' Balanced protection between safety and upside.'}
+            </span>
+          </summary>
+          <div className="text-[13px] leading-relaxed mt-4" style={{ color: 'var(--text-secondary)' }}>
+            {result.ai.reasoning}
           </div>
           {result.ai.warnings.length > 0 && (
             <div className="space-y-1.5 mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
@@ -95,7 +86,7 @@ export default function Confirmation({ result, onViewDetails, onDone }: Confirma
               ))}
             </div>
           )}
-        </div>
+        </details>
       )}
 
       {/* Transaction ID */}

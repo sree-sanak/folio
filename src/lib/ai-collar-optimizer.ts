@@ -36,10 +36,31 @@ export interface OptimizationContext {
   previousCollars?: number;
 }
 
+// ── AI Recommendation Cache ─────────────────────────────────────────────
+// Keyed by symbol only — AI recommendations are floor/cap percentages, not
+// absolute values, so they're valid across different spend amounts.
+
+const aiCache: Record<string, { data: CollarRecommendation; ts: number }> = {};
+const AI_CACHE_TTL = 5 * 60_000; // 5 minutes
+
+function getCachedAiRecommendation(symbol: string): CollarRecommendation | null {
+  const entry = aiCache[symbol];
+  if (entry && Date.now() - entry.ts < AI_CACHE_TTL) {
+    console.log(`[collar] AI cache hit for ${symbol}`);
+    return entry.data;
+  }
+  return null;
+}
+
+function setCachedAiRecommendation(symbol: string, data: CollarRecommendation): void {
+  aiCache[symbol] = { data, ts: Date.now() };
+}
+
 // ── Optimizer ────────────────────────────────────────────────────────────
 
 export async function optimizeCollar(
-  context: OptimizationContext
+  context: OptimizationContext,
+  preloadedVolData?: Awaited<ReturnType<typeof getVolatilityData>>,
 ): Promise<CollarRecommendation> {
   // Try Chainlink oracle first — on-chain, DON-verified collar params
   const chainlinkCollar = await getChainlinkCollar(context.symbol);
@@ -48,13 +69,19 @@ export async function optimizeCollar(
     return chainlinkToRecommendation(chainlinkCollar, context.stockPrice);
   }
 
-  // Always fetch real volatility data
-  const volData = await getVolatilityData(context.symbol);
+  // Check AI recommendation cache before fetching vol data or calling LLM
+  const cached = getCachedAiRecommendation(context.symbol);
+  if (cached) return cached;
+
+  // Use preloaded vol data if provided, otherwise fetch
+  const volData = preloadedVolData ?? await getVolatilityData(context.symbol);
 
   // Try AI-enhanced optimization if API key is available
   if (process.env.MINIMAX_API_KEY) {
     try {
-      return await aiOptimize(context, volData);
+      const result = await aiOptimize(context, volData);
+      setCachedAiRecommendation(context.symbol, result);
+      return result;
     } catch (error) {
       console.error('AI optimizer failed, using quantitative fallback:', error);
     }
@@ -63,6 +90,7 @@ export async function optimizeCollar(
   // Quantitative fallback using real market data (no LLM needed)
   return quantitativeOptimize(context, volData);
 }
+
 
 /** Chainlink data is fresh if updated within the last hour */
 function isChainlinkFresh(collar: ChainlinkCollar): boolean {

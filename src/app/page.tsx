@@ -57,6 +57,11 @@ export interface SpendResult {
   // P2P fields (present when send flow is used)
   recipientName?: string; // Hedera account ID of recipient
   recipientAccountId?: string;
+  // Collar price boundaries
+  floor?: number;
+  cap?: number;
+  floorPct?: number;
+  capPct?: number;
   // AI collar optimization details
   ai?: {
     confidence: number;
