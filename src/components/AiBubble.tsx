@@ -28,26 +28,34 @@ function getSuggestion(note: ActiveNote, prices: Record<string, PriceData>): str
   const expiry = new Date(note.expiryDate);
   const daysLeft = Math.max(0, Math.ceil((expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
 
-  // Near expiry (highest priority)
-  if (daysLeft <= 7) {
+  // Urgent (< 3 days)
+  if (daysLeft <= 3) {
     return daysLeft === 0
-      ? `Your advance expires today! Settle now to keep your ${formatShares(note.shares)} ${note.symbol} shares.`
-      : `${daysLeft} day${daysLeft > 1 ? 's' : ''} until your advance expires. Settle now to keep your shares.`;
+      ? `Your ${formatUsd(note.amount)} ${note.symbol} loan expires today! Settle now to keep your shares, or extend for a fee.`
+      : `${daysLeft} day${daysLeft > 1 ? 's' : ''} left on your ${formatUsd(note.amount)} ${note.symbol} loan. Settle now to keep your shares, or extend for a fee.`;
+  }
+
+  // Near expiry (< 14 days)
+  if (daysLeft <= 14) {
+    if (price && price.changePercent > 0) {
+      return `${daysLeft} days to repay your ${formatUsd(note.amount)} ${note.symbol} loan. Your shares are doing well, ${note.symbol} up ${price.changePercent.toFixed(1)}% this month. Tap to settle.`;
+    }
+    return `${daysLeft} days to repay your ${formatUsd(note.amount)} ${note.symbol} loan. Tap to settle.`;
   }
 
   if (price) {
     // Stock approaching cap
     if (price.price >= note.cap * 0.95) {
-      return `${note.symbol} approaching your collar cap (${formatUsd(note.cap)}). Settle now before gains are capped.`;
+      return `${note.symbol} is near your upside limit. Settle your ${formatUsd(note.amount)} loan to keep the gains.`;
     }
     // Stock is up today
     if (price.changePercent > 0) {
-      return `${note.symbol} up ${price.changePercent.toFixed(1)}% today. Settle your advance to keep the upside.`;
+      return `${note.symbol} up ${price.changePercent.toFixed(1)}% today. You have ${formatUsd(note.amount)} due ${new Date(note.expiryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}. Settle anytime.`;
     }
   }
 
-  // Default: reference collateral shares
-  return `Settle ${formatUsd(note.amount)} to unlock your ${formatShares(note.shares)} ${note.symbol} shares.`;
+  // Default
+  return `You have ${formatUsd(note.amount)} due ${new Date(note.expiryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}. Settle anytime to unlock your ${formatShares(note.shares)} ${note.symbol} shares.`;
 }
 
 function getMostUrgentNote(notes: ActiveNote[]): ActiveNote | null {
@@ -58,6 +66,12 @@ function getMostUrgentNote(notes: ActiveNote[]): ActiveNote | null {
     if (dateCompare !== 0) return dateCompare;
     return b.amount - a.amount; // bigger debt first on tie
   })[0];
+}
+
+function isUrgent(note: ActiveNote): boolean {
+  const expiry = new Date(note.expiryDate);
+  const daysLeft = Math.max(0, Math.ceil((expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+  return daysLeft <= 3;
 }
 
 export default function AiBubble({ activeNotes, prices, onRepaySuccess }: AiBubbleProps) {
@@ -71,21 +85,22 @@ export default function AiBubble({ activeNotes, prices, onRepaySuccess }: AiBubb
   const { signTransaction } = useHederaKey();
 
   const note = getMostUrgentNote(activeNotes);
+  const urgent = note ? isUrgent(note) : false;
+  const activeCount = activeNotes.filter(n => n.status === 'active').length;
 
-  // Dismissal with sessionStorage timestamp
+  // User-dismissable — no auto-dismiss timer
   const [dismissed, setDismissed] = useState(false);
+  // Track what context triggered the last dismissal so we can re-surface on change
+  const [dismissedContext, setDismissedContext] = useState<string>('');
+
+  // Re-surface when context changes (different note, urgency level changes, price moves)
   useEffect(() => {
-    const stored = sessionStorage.getItem('aiBubbleDismissedAt');
-    if (stored) {
-      const elapsed = Date.now() - parseInt(stored, 10);
-      if (elapsed < 600000) { // 10 minutes
-        setDismissed(true);
-        return;
-      }
-      sessionStorage.removeItem('aiBubbleDismissedAt');
+    if (!note) return;
+    const currentContext = `${note.id}-${urgent}-${Math.floor(Date.now() / (1000 * 60 * 60 * 24))}`;
+    if (dismissed && dismissedContext !== currentContext) {
+      setDismissed(false);
     }
-    setDismissed(false);
-  }, []);
+  }, [note, urgent, dismissed, dismissedContext]);
 
   // Entrance animation: delay 1s after notes load
   useEffect(() => {
@@ -107,8 +122,10 @@ export default function AiBubble({ activeNotes, prices, onRepaySuccess }: AiBubb
   const handleDismissSpeech = useCallback(() => {
     setShowSpeech(false);
     setDismissed(true);
-    sessionStorage.setItem('aiBubbleDismissedAt', Date.now().toString());
-  }, []);
+    if (note) {
+      setDismissedContext(`${note.id}-${urgent}-${Math.floor(Date.now() / (1000 * 60 * 60 * 24))}`);
+    }
+  }, [note, urgent]);
 
   const handleSettle = async () => {
     if (!note) return;
@@ -145,11 +162,12 @@ export default function AiBubble({ activeNotes, prices, onRepaySuccess }: AiBubb
       });
       if (res.ok) {
         setSuccess(true);
+        // Longer celebration — 5 seconds
         setTimeout(() => {
           setShowSheet(false);
           setSuccess(false);
           onRepaySuccess();
-        }, 2000);
+        }, 5000);
       } else {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Settlement failed');
@@ -166,30 +184,41 @@ export default function AiBubble({ activeNotes, prices, onRepaySuccess }: AiBubb
   if (!note || !bubbleVisible) return null;
 
   const suggestion = getSuggestion(note, prices);
+  const dotColor = urgent ? '#F59E0B' : '#10B981';
+  const dotShadow = urgent ? '0 2px 12px rgba(245,158,11,0.3)' : '0 2px 12px rgba(16,185,129,0.3)';
 
   return (
     <>
-      {/* Emerald dot */}
+      {/* Dot + speech bubble */}
       <div className="fixed z-40 bottom-20 right-4 md:bottom-4"
         style={{ transition: 'opacity 400ms ease-out, transform 400ms ease-out' }}>
         {/* Speech bubble */}
         {showSpeech && !showSheet && (
           <div
             className="absolute bottom-14 right-0 mb-2 cursor-pointer"
-            style={{ maxWidth: 260 }}
+            style={{ maxWidth: 280 }}
             onClick={() => { setShowSheet(true); setShowSpeech(false); }}
           >
             <div className="p-3 rounded-xl text-[13px] leading-relaxed"
               style={{
-                background: 'rgba(16,185,129,0.08)',
-                border: '1px solid rgba(16,185,129,0.15)',
+                background: urgent ? 'rgba(245,158,11,0.06)' : 'rgba(16,185,129,0.08)',
+                border: `1px solid ${urgent ? 'rgba(245,158,11,0.12)' : 'rgba(16,185,129,0.15)'}`,
                 color: 'var(--text-primary)',
               }}>
+              {activeCount > 1 && (
+                <div className="text-[11px] font-semibold mb-1.5" style={{ color: urgent ? 'var(--warning)' : 'var(--accent)' }}>
+                  {activeCount} active advances
+                </div>
+              )}
               {suggestion}
             </div>
             {/* Arrow */}
             <div className="absolute -bottom-1.5 right-4 w-3 h-3 rotate-45"
-              style={{ background: 'rgba(16,185,129,0.08)', borderRight: '1px solid rgba(16,185,129,0.15)', borderBottom: '1px solid rgba(16,185,129,0.15)' }} />
+              style={{
+                background: urgent ? 'rgba(245,158,11,0.06)' : 'rgba(16,185,129,0.08)',
+                borderRight: `1px solid ${urgent ? 'rgba(245,158,11,0.12)' : 'rgba(16,185,129,0.15)'}`,
+                borderBottom: `1px solid ${urgent ? 'rgba(245,158,11,0.12)' : 'rgba(16,185,129,0.15)'}`,
+              }} />
           </div>
         )}
 
@@ -199,8 +228,8 @@ export default function AiBubble({ activeNotes, prices, onRepaySuccess }: AiBubb
           aria-label="AI assistant"
           className="w-11 h-11 rounded-full flex items-center justify-center cursor-pointer"
           style={{
-            background: '#10B981',
-            boxShadow: '0 2px 12px rgba(16,185,129,0.3)',
+            background: dotColor,
+            boxShadow: dotShadow,
             animation: 'pulse 2s infinite',
           }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -239,8 +268,8 @@ export default function AiBubble({ activeNotes, prices, onRepaySuccess }: AiBubb
                   </svg>
                 </div>
                 <div className="text-[20px] font-bold" style={{ color: '#10B981' }}>Shares Unlocked!</div>
-                <div className="text-[13px] mt-2" style={{ color: 'var(--text-tertiary)' }}>
-                  {formatShares(note.shares)} {note.symbol} shares returned to your portfolio
+                <div className="text-[13px] mt-2" style={{ color: 'var(--text-secondary)' }}>
+                  Your {formatShares(note.shares)} {note.symbol} shares are fully yours again.
                 </div>
               </div>
             ) : (

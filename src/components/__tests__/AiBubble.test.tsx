@@ -97,10 +97,10 @@ describe('AiBubble', () => {
         <AiBubble activeNotes={[baseNote]} prices={nearCapPrices} onRepaySuccess={jest.fn()} />
       );
       showBubbleWithSpeech();
-      expect(screen.getByText(/approaching your collar cap/)).toBeInTheDocument();
+      expect(screen.getByText(/near your upside limit/)).toBeInTheDocument();
     });
 
-    it('shows near-expiry suggestion when days left <= 7', () => {
+    it('shows near-expiry suggestion when days left <= 3', () => {
       const urgentNote = {
         ...baseNote,
         expiryDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
@@ -109,7 +109,7 @@ describe('AiBubble', () => {
         <AiBubble activeNotes={[urgentNote]} prices={basePrices} onRepaySuccess={jest.fn()} />
       );
       showBubbleWithSpeech();
-      expect(screen.getByText(/3 days until your advance expires/)).toBeInTheDocument();
+      expect(screen.getByText(/3 days? left on your \$500\.00 TSLA loan/)).toBeInTheDocument();
     });
 
     it('shows default suggestion when no special condition', () => {
@@ -120,7 +120,7 @@ describe('AiBubble', () => {
         <AiBubble activeNotes={[baseNote]} prices={flatPrices} onRepaySuccess={jest.fn()} />
       );
       showBubbleWithSpeech();
-      expect(screen.getByText(/Settle \$500\.00 to unlock/)).toBeInTheDocument();
+      expect(screen.getByText(/You have \$500\.00 due/)).toBeInTheDocument();
     });
   });
 
@@ -198,7 +198,7 @@ describe('AiBubble', () => {
   });
 
   describe('dismissal', () => {
-    it('dismisses speech bubble and persists to sessionStorage', () => {
+    it('dismisses speech bubble when dot is clicked', () => {
       render(
         <AiBubble activeNotes={[baseNote]} prices={basePrices} onRepaySuccess={jest.fn()} />
       );
@@ -206,7 +206,8 @@ describe('AiBubble', () => {
 
       // Speech is showing, clicking dot should dismiss
       fireEvent.click(screen.getByLabelText('AI assistant'));
-      expect(sessionStorage.getItem('aiBubbleDismissedAt')).not.toBeNull();
+      // Speech bubble should no longer be showing after dismiss
+      expect(screen.queryByText(/TSLA up 2.0% today/)).not.toBeInTheDocument();
     });
   });
 
@@ -219,7 +220,7 @@ describe('AiBubble', () => {
         <AiBubble activeNotes={[farNote, nearNote]} prices={basePrices} onRepaySuccess={jest.fn()} />
       );
       showBubbleWithSpeech();
-      expect(screen.getByText(/5 days until your advance expires/)).toBeInTheDocument();
+      expect(screen.getByText(/5 days to repay/)).toBeInTheDocument();
     });
   });
 });
