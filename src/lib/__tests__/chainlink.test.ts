@@ -1,6 +1,6 @@
 /**
  * Tests for Chainlink CollarOracle integration
- * Verifies on-chain collar reads via viem
+ * Verifies on-chain collar reads and direct price feed reads via viem
  */
 
 const mockReadContract = jest.fn();
@@ -18,7 +18,7 @@ jest.mock('viem/chains', () => ({
 // Set env before import
 process.env.COLLAR_ORACLE_ADDRESS = '0x00A3cF51bA20eA6f1754BaFcecA6d144e3d1D00f';
 
-import { getChainlinkCollar, getChainlinkCollars } from '../chainlink';
+import { getChainlinkCollar, getChainlinkCollars, getChainlinkPrice } from '../chainlink';
 
 describe('chainlink oracle', () => {
   beforeEach(() => {
@@ -60,6 +60,37 @@ describe('chainlink oracle', () => {
       mockReadContract.mockRejectedValue(new Error('RPC timeout'));
 
       const result = await getChainlinkCollar('TSLA');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getChainlinkPrice', () => {
+    it('returns price from direct Chainlink Price Feed', async () => {
+      const now = Math.floor(Date.now() / 1000);
+      mockReadContract.mockResolvedValue([
+        BigInt(25500000000),   // $255.00 (8 decimals)
+        BigInt(now),
+      ]);
+
+      const result = await getChainlinkPrice('TSLA');
+
+      expect(result).not.toBeNull();
+      expect(result!.symbol).toBe('TSLA');
+      expect(result!.price).toBe(255);
+      expect(result!.source).toBe('chainlink-feed');
+    });
+
+    it('returns null when no price feed is configured', async () => {
+      mockReadContract.mockRejectedValue(new Error('CollarOracle: no feed'));
+
+      const result = await getChainlinkPrice('TSLA');
+      expect(result).toBeNull();
+    });
+
+    it('returns null when price is zero', async () => {
+      mockReadContract.mockResolvedValue([BigInt(0), BigInt(0)]);
+
+      const result = await getChainlinkPrice('TSLA');
       expect(result).toBeNull();
     });
   });

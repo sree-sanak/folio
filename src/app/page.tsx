@@ -29,7 +29,12 @@ export interface PriceData {
   change: number;
   changePercent: number;
   lastUpdated: string;
-  source: 'live' | 'cached' | 'fallback';
+  source: 'live' | 'cached' | 'fallback' | 'chainlink';
+  collar?: {
+    floor: number;
+    cap: number;
+    volatility: number;
+  };
 }
 
 export interface SpendResult {
