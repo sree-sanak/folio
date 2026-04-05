@@ -67,14 +67,10 @@ export function usePlaidHoldings(userAccountId?: string): PlaidHookResult {
         return;
       }
 
-      // Load user's on-chain HTS stock holdings
+      // Load user's on-chain HTS stock holdings (minted at registration)
       const hasHedera = await fetchHederaHoldings();
       if (!hasHedera && !cancelled) {
         setHoldings(DEMO_HOLDINGS);
-        // Sync demo holdings to on-chain (fire-and-forget)
-        if (userAccountId) {
-          syncHoldingsToChain(userAccountId, DEMO_HOLDINGS);
-        }
       }
 
       // Try loading previously-connected brokerage holdings (token persists in DB)
@@ -132,7 +128,7 @@ export function usePlaidHoldings(userAccountId?: string): PlaidHookResult {
 
     init();
     return () => { cancelled = true; };
-  }, [fetchHederaHoldings, syncHoldingsToChain, userAccountId, user]);
+  }, [fetchHederaHoldings, userAccountId, user]);
 
   // Fetch brokerage holdings, merge with HTS, and sync to on-chain
   const fetchHoldings = useCallback(async () => {
