@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createHash } from 'crypto';
 import { plaidClient, isPlaidConfigured } from '@/lib/plaid';
 import { Products, CountryCode } from 'plaid';
 import { verifyAuth, unauthorized } from '@/lib/auth';
@@ -15,10 +16,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const userId = auth.email;
+    const plaidUserId = createHash('sha256').update(auth.email).digest('hex').slice(0, 32);
 
     const response = await plaidClient.linkTokenCreate({
-      user: { client_user_id: userId },
+      user: { client_user_id: plaidUserId },
       client_name: 'Folio',
       products: [Products.Investments],
       country_codes: [CountryCode.Us],
@@ -27,12 +28,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ link_token: response.data.link_token });
   } catch (error: unknown) {
-    const plaidError = error && typeof error === 'object' && 'response' in error
-      ? (error as { response?: { data?: unknown } }).response?.data
-      : String(error);
-    console.error('Plaid link token error:', plaidError);
+    console.error('Plaid link token error:', error);
     return NextResponse.json(
-      { error: 'Failed to create link token', detail: plaidError },
+      { error: 'Failed to create link token' },
       { status: 500 }
     );
   }
