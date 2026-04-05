@@ -25,6 +25,32 @@ export async function POST(req: NextRequest) {
     // Check if user already exists
     const existing = await getUser(email);
     if (existing) {
+      // Even for existing users, prepare token association if Hedera is configured
+      // This handles the case where account was created but provisioning was interrupted
+      if (hederaConfigured && existing.hederaAccountId && !existing.hederaAccountId.startsWith('0.0.1')) {
+        try {
+          const { prepareTokenAssociation } = await import('@/lib/hedera');
+          const tokenIds = ['TSLA', 'AAPL']
+            .map(getTokenIdForSymbol)
+            .filter(Boolean) as string[];
+          const usdcId = process.env.USDC_TEST_TOKEN_ID;
+          const noteId = process.env.SPEND_NOTE_TOKEN_ID;
+          if (usdcId) tokenIds.push(usdcId);
+          if (noteId) tokenIds.push(noteId);
+
+          if (tokenIds.length > 0) {
+            const txBytes = await prepareTokenAssociation(existing.hederaAccountId, tokenIds);
+            const tokenAssocTxBytes = Buffer.from(txBytes).toString('base64');
+            return NextResponse.json({
+              user: existing,
+              needsTokenAssociation: true,
+              tokenAssocTxBytes,
+            });
+          }
+        } catch (err) {
+          console.log('[register] Could not prepare token assoc for existing user (may already be done):', err instanceof Error ? err.message : err);
+        }
+      }
       return NextResponse.json({ user: existing });
     }
 

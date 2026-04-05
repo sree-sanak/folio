@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useDynamicContext, useUserWallets } from '@dynamic-labs/sdk-react-core';
 import { authFetch } from '@/lib/use-auth-fetch';
 import { useHederaKey } from './use-hedera-key';
@@ -35,6 +35,7 @@ export function useUserRegistration() {
   const [needsPassphrase, setNeedsPassphrase] = useState(false);
   const [needsRecovery, setNeedsRecovery] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
+  const registrationInFlight = useRef(false);
 
   // Called by UI when user submits passphrase for new registration
   const submitPassphrase = useCallback(async (passphrase: string) => {
@@ -117,6 +118,9 @@ export function useUserRegistration() {
 
   useEffect(() => {
     if (!user?.email) return;
+    // Prevent StrictMode double-execution — if registration is already in flight, skip
+    if (registrationInFlight.current) return;
+    registrationInFlight.current = true;
 
     let cancelled = false;
 
@@ -238,7 +242,7 @@ export function useUserRegistration() {
       }
     }
 
-    register();
+    register().finally(() => { registrationInFlight.current = false; });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.email]);

@@ -83,15 +83,20 @@ export function usePlaidHoldings(userAccountId?: string): PlaidHookResult {
       // Load user's on-chain HTS stock holdings (minted at registration).
       // Retries with backoff to handle mirror node sync delay.
       let htsHoldings = await fetchHederaHoldings();
+      if (cancelled) return;
 
-      // If still empty, registration minting may have failed — re-attempt via sync
-      if (!htsHoldings && !cancelled && userAccountId) {
+      // If still empty and we have an account, registration minting may have
+      // failed — re-attempt via sync endpoint (idempotent, will mint deficit)
+      if (!htsHoldings && userAccountId) {
+        console.log('[holdings] No on-chain holdings found, attempting self-heal sync...');
         await syncHoldingsToChain(userAccountId, DEMO_HOLDINGS);
-        htsHoldings = await fetchHederaHoldings(2); // shorter retry for second attempt
+        if (cancelled) return;
+        htsHoldings = await fetchHederaHoldings(2);
       }
 
-      // If still nothing, show empty state — never show fake holdings
+      // If still nothing, show empty — never show fake holdings
       if (!htsHoldings && !cancelled) {
+        console.warn('[holdings] Self-heal failed — showing empty portfolio');
         setHoldings([]);
       }
 
