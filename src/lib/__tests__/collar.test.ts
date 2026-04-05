@@ -79,9 +79,11 @@ describe('calculateCollar', () => {
       expect(result.advanceHts).toBe(Math.floor(5000 * 1e6));
     });
 
-    it('floor and cap scale with price', () => {
-      expect(result.floor).toBeCloseTo(225 * 0.95, 8);
-      expect(result.cap).toBeCloseTo(225 * 1.15, 8);
+    it('floor and cap scale with price and duration', () => {
+      // Floor/cap scale by sqrt(duration): 5% * sqrt(3) ≈ 8.66%, 15% * sqrt(3) ≈ 25.98%
+      const scale = Math.sqrt(3);
+      expect(result.floor).toBeCloseTo(225 * (1 - 0.05 * scale), 8);
+      expect(result.cap).toBeCloseTo(225 * (1 + 0.15 * scale), 8);
     });
 
     it('duration is 3 months', () => {
