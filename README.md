@@ -91,7 +91,7 @@ Dynamic is what makes blockchain invisible. Users sign in with email, spend agai
 ## Getting started
 
 ```bash
-git clone https://github.com/zalatar242/folio.git
+git clone https://github.com/sree-sanak/folio.git
 cd folio
 cp .env.example .env.local
 # Fill in: HEDERA_OPERATOR_ID, HEDERA_OPERATOR_KEY,
